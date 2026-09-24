@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Store,
   Plus,
@@ -11,12 +11,31 @@ import {
   MapPin,
   Phone,
   Search,
-  AtSign,
+  BellRing,
+  ChefHat,
+  Receipt,
+  Flame,
+  Coffee,
+  Info,
+  ShoppingBag,
 } from "lucide-react";
 
 // =====================================
-// دیتای تستی مشترک برای جلوگیری از تداخل متغیرها
+// دیتای تستی مشترک
 // =====================================
+const MOCK_VENUE = {
+  name: "کافه رستوران دمو",
+  about_us:
+    "این یک صفحه تستی برای نمایش ظاهر قالب‌ها است. طعم واقعی و کیفیت بی‌نظیر را با ما تجربه کنید. ما با استفاده از بهترین مواد اولیه، تجربه‌ای فراموش‌نشدنی را برای شما رقم می‌زنیم.",
+  address: "تهران، خیابان ولیعصر، کوچه تستی، پلاک ۱",
+  phone: "021-12345678",
+  logo: "https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=200&h=200&fit=crop",
+  brand_color: "orange",
+  is_ordering_enabled: true,
+  is_waiter_enabled: true,
+  is_chef_request_enabled: true,
+};
+
 const MOCK_CATEGORIES = [
   {
     id: 1,
@@ -29,6 +48,7 @@ const MOCK_CATEGORIES = [
         description: "اسپرسو سینگل، شیر فوم گرفته شده",
         image:
           "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=200&h=200&fit=crop",
+        is_available: true,
       },
       {
         id: 102,
@@ -37,6 +57,7 @@ const MOCK_CATEGORIES = [
         description: "اسپرسو دبل، فوم شیر کلاسیک",
         image:
           "https://images.unsplash.com/photo-1534778101976-62847782c213?w=200&h=200&fit=crop",
+        is_available: true,
       },
     ],
   },
@@ -51,13 +72,26 @@ const MOCK_CATEGORIES = [
         description: "پنه، سس آلفردو، مرغ گریل شده، قارچ",
         image:
           "https://images.unsplash.com/photo-1628840042765-356cda07504e?w=200&h=200&fit=crop",
+        is_available: true,
       },
     ],
   },
 ];
 
-const LOGO_URL =
-  "https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=200&h=200&fit=crop";
+const HEX_COLORS: Record<string, string> = {
+  emerald: "#10b981",
+  rose: "#f43f5e",
+  amber: "#f59e0b",
+  blue: "#3b82f6",
+  purple: "#a855f7",
+  orange: "#f97316",
+};
+
+const ORDER_STAGES = [
+  { id: "new", label: "ثبت سفارش", icon: Receipt },
+  { id: "preparing", label: "در حال پخت", icon: Flame },
+  { id: "ready", label: "آماده تحویل", icon: Coffee },
+];
 
 // =====================================
 // 1. قالب مدرن دمو (Modern Demo)
@@ -66,13 +100,13 @@ export const ModernDemo = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [cart, setCart] = useState<any[]>([]);
   const [orderStatus, setOrderStatus] = useState<
-    "shopping" | "checkout" | "success"
+    "shopping" | "checkout" | "tracking"
   >("shopping");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeCategory, setActiveCategory] = useState(MOCK_CATEGORIES[0]?.id);
+  const [currentStageIndex, setCurrentStageIndex] = useState(0);
 
-  const brandColor = "#10b981"; // Emerald
-
+  const brandColor = HEX_COLORS[MOCK_VENUE.brand_color] || HEX_COLORS.orange;
   const cartTotal = cart.reduce(
     (sum, item) => sum + (item.price || 0) * (item.qty || 1),
     0,
@@ -86,6 +120,7 @@ export const ModernDemo = () => {
         ? p.map((i) => (i.id === product.id ? { ...i, qty: i.qty + 1 } : i))
         : [...p, { ...product, qty: 1 }],
     );
+
   const removeFromCart = (id: number) =>
     setCart((p) =>
       p.find((i) => i.id === id)?.qty > 1
@@ -97,59 +132,110 @@ export const ModernDemo = () => {
     setIsSubmitting(true);
     setTimeout(() => {
       setIsSubmitting(false);
-      setOrderStatus("success");
+      setOrderStatus("tracking");
       setCart([]);
+      setCurrentStageIndex(0);
     }, 1500);
   };
 
-  // 🔴 فیلتر جستجوی کاملاً ضدکِرَش (Crash-Proof)
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (
+      orderStatus === "tracking" &&
+      currentStageIndex < ORDER_STAGES.length - 1
+    ) {
+      timer = setTimeout(() => setCurrentStageIndex((prev) => prev + 1), 5000);
+    }
+    return () => clearTimeout(timer);
+  }, [orderStatus, currentStageIndex]);
+
   const filteredCategories = MOCK_CATEGORIES.map((cat) => ({
     ...cat,
     items: (cat.items || []).filter((item) => {
       const q = (searchQuery || "").toLowerCase().trim();
       if (!q) return true;
-      const n = (item.name || "").toLowerCase();
-      const d = (item.description || "").toLowerCase();
-      return n.includes(q) || d.includes(q);
+      return (
+        (item.name || "").includes(q) || (item.description || "").includes(q)
+      );
     }),
   })).filter((cat) => cat.items.length > 0);
 
+  const handleServiceRequest = (service: string) => {
+    alert(`درخواست ${service} با موفقیت ثبت شد.`);
+  };
+
   return (
     <div
-      className="min-h-screen bg-slate-50 flex justify-center font-sans text-slate-800"
+      className="min-h-screen bg-slate-100 flex justify-center font-sans text-slate-800"
       dir="rtl"
     >
       <div className="w-full max-w-md bg-slate-50 min-h-screen shadow-2xl relative overflow-x-hidden pb-24 flex flex-col">
+        {/* هدر گرافیکی */}
         <div
-          className="relative h-56 w-full overflow-hidden transition-colors duration-500"
+          className="relative h-48 w-full overflow-hidden transition-colors duration-500 rounded-b-[40px] shadow-sm"
           style={{ backgroundColor: brandColor }}
         >
           <div className="absolute inset-0 bg-gradient-to-br from-white/30 via-transparent to-black/20"></div>
           <div className="absolute -top-16 -right-16 w-48 h-48 bg-white/20 rounded-full blur-3xl"></div>
           <div className="absolute -bottom-16 -left-16 w-56 h-56 bg-black/10 rounded-full blur-3xl"></div>
-        </div>
-
-        <div className="bg-slate-50 -mt-10 rounded-t-[40px] relative z-10 pt-14 pb-6 px-4 flex flex-col items-center">
-          <div className="absolute -top-14 w-28 h-28 rounded-[32px] border-4 border-slate-50 bg-white overflow-hidden shadow-xl flex items-center justify-center">
-            <img
-              src={LOGO_URL}
-              alt="logo"
-              className="w-full h-full object-cover"
-            />
+          <div className="absolute inset-0 flex flex-col items-center justify-center pt-4">
+            <div className="w-20 h-20 rounded-[24px] border-[3px] border-white bg-white overflow-hidden shadow-lg mb-3">
+              <img
+                src={MOCK_VENUE.logo}
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <h1 className="text-xl font-black text-white tracking-tight drop-shadow-md">
+              {MOCK_VENUE.name}
+            </h1>
           </div>
-          <h1 className="text-3xl font-black text-slate-900 mt-2 tracking-tight">
-            رستوران مدرن دمو
-          </h1>
-          <p
-            className="text-sm font-bold mt-2 opacity-80"
-            style={{ color: brandColor }}
-          >
-            تجربه طعم‌های ماندگار در محیطی مدرن.
-          </p>
         </div>
 
-        <div className="px-5 mb-4 sticky top-4 z-50">
-          <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-sm border border-white flex items-center px-4 py-3.5">
+        {/* دکمه‌های درخواست خدمات */}
+        <div className="px-4 -mt-6 relative z-20 flex gap-3">
+          {MOCK_VENUE.is_waiter_enabled && (
+            <button
+              onClick={() => handleServiceRequest("احضار گارسون")}
+              className="flex-1 bg-white/90 backdrop-blur-md border border-white rounded-[20px] p-3 shadow-lg flex flex-col items-center justify-center gap-2 hover:-translate-y-1 transition-transform"
+            >
+              <div
+                className="w-10 h-10 rounded-full flex items-center justify-center"
+                style={{
+                  backgroundColor: `${brandColor}15`,
+                  color: brandColor,
+                }}
+              >
+                <BellRing size={20} />
+              </div>
+              <span className="text-xs font-black text-slate-700">
+                درخواست گارسون
+              </span>
+            </button>
+          )}
+          {MOCK_VENUE.is_chef_request_enabled && (
+            <button
+              onClick={() => handleServiceRequest("سفارش اختصاصی")}
+              className="flex-1 bg-white/90 backdrop-blur-md border border-white rounded-[20px] p-3 shadow-lg flex flex-col items-center justify-center gap-2 hover:-translate-y-1 transition-transform"
+            >
+              <div
+                className="w-10 h-10 rounded-full flex items-center justify-center"
+                style={{
+                  backgroundColor: `${brandColor}15`,
+                  color: brandColor,
+                }}
+              >
+                <ChefHat size={20} />
+              </div>
+              <span className="text-xs font-black text-slate-700">
+                سفارش به آشپز
+              </span>
+            </button>
+          )}
+        </div>
+
+        {/* جستجو */}
+        <div className="px-5 mt-6 mb-2 sticky top-2 z-50">
+          <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-sm border border-slate-100 flex items-center px-4 py-3.5">
             <Search className="text-slate-400 shrink-0" size={20} />
             <input
               type="text"
@@ -161,15 +247,16 @@ export const ModernDemo = () => {
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery("")}
-                className="text-slate-400"
+                className="text-slate-400 bg-slate-100 p-1 rounded-full"
               >
-                <X size={18} />
+                <X size={14} />
               </button>
             )}
           </div>
         </div>
 
-        <div className="sticky top-[88px] z-40 bg-slate-50/90 backdrop-blur-xl border-b border-slate-200/50 py-3 mb-2">
+        {/* دسته‌بندی‌ها */}
+        <div className="sticky top-[72px] z-40 bg-slate-50/95 backdrop-blur-xl border-b border-slate-200/50 py-3 mb-2">
           <div
             className="flex overflow-x-auto px-5 gap-3 snap-x hide-scrollbar"
             style={{ scrollbarWidth: "none" }}
@@ -178,13 +265,13 @@ export const ModernDemo = () => {
               <button
                 key={cat.id}
                 onClick={() => setActiveCategory(cat.id)}
-                className="snap-center shrink-0 px-5 py-2.5 rounded-2xl font-bold border transition-all"
+                className="snap-center shrink-0 px-5 py-2.5 rounded-2xl font-black border transition-all text-sm shadow-sm"
                 style={{
                   backgroundColor:
                     activeCategory === cat.id ? brandColor : "#fff",
                   color: activeCategory === cat.id ? "#fff" : "#64748b",
                   borderColor:
-                    activeCategory === cat.id ? brandColor : "#e2e8f0",
+                    activeCategory === cat.id ? brandColor : "#f1f5f9",
                 }}
               >
                 {cat.name}
@@ -193,116 +280,111 @@ export const ModernDemo = () => {
           </div>
         </div>
 
-        <div className="flex-1 p-5 space-y-10 pb-10">
-          {filteredCategories.length === 0 ? (
-            <div className="text-center py-10 opacity-50">
-              <p className="font-bold">محصولی یافت نشد.</p>
-            </div>
-          ) : (
-            filteredCategories.map((category) => (
-              <div key={category.id}>
-                <h2 className="text-xl font-black text-slate-800 mb-5 pr-4 relative flex items-center">
-                  <span
-                    className="absolute right-0 w-2 h-8 rounded-full"
-                    style={{ backgroundColor: brandColor }}
-                  ></span>
-                  {category.name}
-                </h2>
-                <div className="space-y-4">
-                  {category.items.map((item) => {
-                    const qty = getItemQty(item.id);
-                    return (
-                      <div
-                        key={item.id}
-                        className="bg-white rounded-[24px] p-3 flex gap-4 shadow-sm border border-slate-100"
-                      >
-                        <div className="w-28 h-28 shrink-0 rounded-2xl overflow-hidden bg-slate-100">
-                          <img
-                            src={item.image}
-                            className="w-full h-full object-cover"
-                          />
+        {/* محصولات */}
+        <div className="flex-1 p-5 space-y-10">
+          {filteredCategories.map((category) => (
+            <div key={category.id}>
+              <h2 className="text-lg font-black text-slate-800 mb-5 pr-4 relative flex items-center">
+                <span
+                  className="absolute right-0 w-1.5 h-6 rounded-full"
+                  style={{ backgroundColor: brandColor }}
+                ></span>
+                {category.name}
+              </h2>
+              <div className="space-y-4">
+                {category.items.map((item) => {
+                  const qty = getItemQty(item.id);
+                  return (
+                    <div
+                      key={item.id}
+                      className="bg-white rounded-[24px] p-3 flex gap-4 shadow-sm border border-slate-100"
+                    >
+                      <div className="w-28 h-28 shrink-0 rounded-[18px] overflow-hidden bg-slate-100">
+                        <img
+                          src={item.image}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div className="flex-1 flex flex-col justify-between py-1.5">
+                        <div>
+                          <h3 className="font-black text-slate-800 mb-1.5 text-sm">
+                            {item.name}
+                          </h3>
+                          <p className="text-[11px] font-bold text-slate-400 line-clamp-2 leading-relaxed">
+                            {item.description}
+                          </p>
                         </div>
-                        <div className="flex-1 flex flex-col justify-between py-1.5">
-                          <div>
-                            <h3 className="font-black text-slate-900 mb-1.5">
-                              {item.name}
-                            </h3>
-                            <p className="text-xs text-slate-500 line-clamp-2">
-                              {item.description}
-                            </p>
+                        <div className="flex justify-between items-end mt-3">
+                          <div
+                            className="font-black text-base tracking-tight"
+                            style={{ color: brandColor }}
+                          >
+                            {item.price.toLocaleString("fa-IR")}{" "}
+                            <span className="text-[10px] text-slate-400 font-bold">
+                              تومان
+                            </span>
                           </div>
-                          <div className="flex justify-between items-end mt-3">
-                            <div
-                              className="font-black text-lg tracking-tight"
-                              style={{ color: brandColor }}
-                            >
-                              {(item.price || 0).toLocaleString("fa-IR")}{" "}
-                              <span className="text-[10px] text-slate-400">
-                                تومان
-                              </span>
-                            </div>
-                            <div className="flex items-center bg-slate-50 rounded-xl p-1 border border-slate-100">
-                              {qty > 0 ? (
-                                <>
-                                  <button
-                                    onClick={() => removeFromCart(item.id)}
-                                    className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-slate-600 shadow-sm"
-                                  >
-                                    <Minus size={16} />
-                                  </button>
-                                  <span className="w-8 text-center font-black text-sm">
-                                    {qty}
-                                  </span>
-                                  <button
-                                    onClick={() => addToCart(item)}
-                                    className="w-8 h-8 rounded-lg flex items-center justify-center text-white shadow-sm"
-                                    style={{ backgroundColor: brandColor }}
-                                  >
-                                    <Plus size={16} />
-                                  </button>
-                                </>
-                              ) : (
+                          <div className="flex items-center bg-slate-50 rounded-[14px] p-1 border border-slate-100">
+                            {qty > 0 ? (
+                              <>
+                                <button
+                                  onClick={() => removeFromCart(item.id)}
+                                  className="w-8 h-8 bg-white rounded-[10px] flex items-center justify-center text-slate-600 shadow-sm border border-slate-100"
+                                >
+                                  <Minus size={16} strokeWidth={2.5} />
+                                </button>
+                                <span className="w-8 text-center font-black text-sm">
+                                  {qty}
+                                </span>
                                 <button
                                   onClick={() => addToCart(item)}
-                                  className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-md"
+                                  className="w-8 h-8 rounded-[10px] flex items-center justify-center text-white shadow-sm"
                                   style={{ backgroundColor: brandColor }}
                                 >
-                                  <Plus size={20} />
+                                  <Plus size={16} strokeWidth={2.5} />
                                 </button>
-                              )}
-                            </div>
+                              </>
+                            ) : (
+                              <button
+                                onClick={() => addToCart(item)}
+                                className="w-10 h-10 rounded-[12px] flex items-center justify-center text-white shadow-md active:scale-95"
+                                style={{ backgroundColor: brandColor }}
+                              >
+                                <Plus size={20} strokeWidth={2.5} />
+                              </button>
+                            )}
                           </div>
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
+                    </div>
+                  );
+                })}
               </div>
-            ))
-          )}
-        </div>
+            </div>
+          ))}
 
-        <div className="mt-auto bg-white rounded-t-[40px] pt-10 pb-24 px-6 border-t border-slate-100 relative overflow-hidden">
-          <div
-            className="absolute -bottom-20 -right-20 w-64 h-64 opacity-5 rounded-full"
-            style={{ backgroundColor: brandColor }}
-          ></div>
-          <div className="relative z-10 text-center">
-            <h3 className="text-xl font-black text-slate-800 mb-4">
-              تماس با ما
+          {/* درباره ما */}
+          <div className="mt-12 bg-white rounded-[28px] p-6 shadow-sm border border-slate-100 text-center">
+            <div className="w-16 h-16 mx-auto bg-slate-50 rounded-2xl flex items-center justify-center mb-4 border border-slate-100">
+              <Info size={28} style={{ color: brandColor }} />
+            </div>
+            <h3 className="font-black text-slate-800 text-lg mb-3">
+              درباره ما
             </h3>
-            <div className="space-y-4 mb-8">
-              <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-2xl">
-                <MapPin size={20} style={{ color: brandColor }} />
-                <p className="text-sm font-bold text-slate-600">
-                  تهران، دمو خیابان اول
-                </p>
+            <p className="text-xs font-bold text-slate-500 leading-loose mb-6">
+              {MOCK_VENUE.about_us}
+            </p>
+            <div className="space-y-3">
+              <div className="flex items-center justify-center gap-2 text-xs font-bold text-slate-600 bg-slate-50 py-2.5 rounded-xl border border-slate-100">
+                <MapPin size={16} style={{ color: brandColor }} />{" "}
+                {MOCK_VENUE.address}
               </div>
-              <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-2xl">
-                <Phone size={20} style={{ color: brandColor }} />
-                <p className="text-sm font-bold text-slate-600" dir="ltr">
-                  021-12345678
-                </p>
+              <div
+                className="flex items-center justify-center gap-2 text-xs font-bold text-slate-600 bg-slate-50 py-2.5 rounded-xl border border-slate-100"
+                dir="ltr"
+              >
+                <Phone size={16} style={{ color: brandColor }} />{" "}
+                {MOCK_VENUE.phone}
               </div>
             </div>
           </div>
@@ -313,7 +395,7 @@ export const ModernDemo = () => {
           <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-[400px] z-50 animate-in slide-in-from-bottom-10 fade-in duration-300">
             <button
               onClick={() => setOrderStatus("checkout")}
-              className="w-full text-white p-4 rounded-2xl shadow-xl flex items-center justify-between transition-transform hover:scale-[1.02]"
+              className="w-full text-white p-4 rounded-2xl shadow-2xl flex items-center justify-between active:scale-95 transition-transform"
               style={{ backgroundColor: brandColor }}
             >
               <div className="flex items-center gap-3">
@@ -323,75 +405,157 @@ export const ModernDemo = () => {
                     {cartItemCount}
                   </span>
                 </div>
-                <span className="font-bold text-sm">تکمیل سفارش</span>
+                <span className="font-black text-sm">تکمیل سفارش</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="font-black text-lg">
                   {cartTotal.toLocaleString("fa-IR")}
                 </span>
-                <ChevronLeft size={20} />
+                <ChevronLeft size={20} strokeWidth={3} />
               </div>
             </button>
           </div>
         )}
 
+        {/* مودال‌های تسویه و پیگیری */}
         {orderStatus !== "shopping" && (
-          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-4">
-            <div className="bg-white w-full max-w-md rounded-t-[32px] sm:rounded-[32px] shadow-2xl flex flex-col p-6">
-              {orderStatus === "checkout" ? (
-                <>
+          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4">
+            <div className="bg-white w-full max-w-md rounded-t-[32px] sm:rounded-[32px] shadow-2xl flex flex-col overflow-hidden max-h-[90vh]">
+              {orderStatus === "checkout" && (
+                <div className="p-6 overflow-y-auto">
                   <div className="flex justify-between items-center mb-6">
-                    <h3 className="font-black text-lg">تکمیل سفارش (تستی)</h3>
-                    <button onClick={() => setOrderStatus("shopping")}>
+                    <h3 className="font-black text-lg text-slate-800">
+                      تکمیل سفارش
+                    </h3>
+                    <button
+                      onClick={() => setOrderStatus("shopping")}
+                      className="bg-slate-100 text-slate-500 p-2 rounded-xl hover:bg-slate-200"
+                    >
                       <X size={20} />
                     </button>
                   </div>
-                  <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 mb-6 space-y-3">
+                  <div className="bg-slate-50 rounded-[24px] p-5 border border-slate-100 mb-6 space-y-4">
                     {cart.map((item: any) => (
                       <div
                         key={item.id}
-                        className="flex justify-between text-sm"
+                        className="flex justify-between items-center text-sm"
                       >
-                        <span className="font-bold">
-                          x{item.qty} {item.name}
+                        <span className="font-black text-slate-800">
+                          <span style={{ color: brandColor }} className="ml-2">
+                            x{item.qty}
+                          </span>{" "}
+                          {item.name}
                         </span>
-                        <span>
-                          {((item.price || 0) * item.qty).toLocaleString(
-                            "fa-IR",
-                          )}{" "}
+                        <span className="font-bold text-slate-600">
+                          {(item.price * item.qty).toLocaleString("fa-IR")}{" "}
                           تومان
                         </span>
                       </div>
                     ))}
+                    <div className="flex justify-between items-center pt-4 border-t border-dashed border-slate-300">
+                      <span className="font-black text-slate-500">
+                        مبلغ نهایی:
+                      </span>
+                      <span className="font-black text-lg text-slate-900">
+                        {cartTotal.toLocaleString("fa-IR")} تومان
+                      </span>
+                    </div>
                   </div>
                   <button
                     disabled={isSubmitting}
                     onClick={handleFinalCheckout}
-                    className="w-full text-white py-4 rounded-2xl font-black flex justify-center"
+                    className="w-full text-white py-4 rounded-2xl font-black flex justify-center items-center shadow-lg active:scale-95"
                     style={{ backgroundColor: brandColor }}
                   >
                     {isSubmitting ? (
                       <Loader2 className="animate-spin" />
                     ) : (
-                      "ثبت سفارش دمو"
+                      "تایید و پرداخت نهایی"
                     )}
                   </button>
-                </>
-              ) : (
-                <div className="text-center py-10">
-                  <CheckCircle2
-                    size={64}
-                    className="text-emerald-500 mx-auto mb-4"
-                  />
-                  <h2 className="text-2xl font-black mb-2">
-                    سفارش تستی ثبت شد!
-                  </h2>
-                  <button
-                    onClick={() => setOrderStatus("shopping")}
-                    className="mt-8 text-slate-500 font-bold bg-slate-100 px-6 py-2 rounded-xl"
+                </div>
+              )}
+              {orderStatus === "tracking" && (
+                <div className="p-6 bg-slate-50 flex flex-col items-center text-center animate-in zoom-in-95 duration-300">
+                  <div
+                    className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 shadow-inner"
+                    style={{
+                      backgroundColor: `${brandColor}20`,
+                      color: brandColor,
+                    }}
                   >
-                    بازگشت به منو
-                  </button>
+                    <Receipt size={32} strokeWidth={2.5} />
+                  </div>
+                  <h2 className="text-xl font-black text-slate-800 mb-2">
+                    سفارش ثبت شد
+                  </h2>
+                  <p className="text-xs font-bold text-slate-500 mb-8">
+                    فیش شماره #1042 - در حال پیگیری
+                  </p>
+                  <div className="w-full bg-white rounded-[24px] p-6 border border-slate-200 shadow-sm relative mb-8 text-right">
+                    <div className="absolute right-9 top-10 bottom-10 w-1 bg-slate-100 rounded-full z-0"></div>
+                    <div className="space-y-8 relative z-10">
+                      {ORDER_STAGES.map((stage, idx) => {
+                        const isActive = idx === currentStageIndex;
+                        const isCompleted = idx < currentStageIndex;
+                        const isPending = idx > currentStageIndex;
+                        return (
+                          <div
+                            key={stage.id}
+                            className={`flex items-center gap-4 transition-all duration-500 ${isPending ? "opacity-40 grayscale" : ""}`}
+                          >
+                            <div
+                              className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border-2 transition-colors ${isActive || isCompleted ? "bg-white" : "bg-slate-50 border-slate-200 text-slate-400"}`}
+                              style={{
+                                borderColor:
+                                  isActive || isCompleted ? brandColor : "",
+                                color:
+                                  isActive || isCompleted ? brandColor : "",
+                              }}
+                            >
+                              {isCompleted ? (
+                                <CheckCircle2 size={24} strokeWidth={3} />
+                              ) : (
+                                <stage.icon size={24} />
+                              )}
+                            </div>
+                            <div>
+                              <h4
+                                className={`font-black text-sm mb-1 ${isActive ? "text-slate-800" : isCompleted ? "text-slate-600" : "text-slate-400"}`}
+                              >
+                                {stage.label}
+                              </h4>
+                              {isActive && (
+                                <p className="text-[10px] font-bold text-slate-500 flex items-center gap-1">
+                                  <span
+                                    className="w-1.5 h-1.5 rounded-full animate-pulse"
+                                    style={{ backgroundColor: brandColor }}
+                                  ></span>{" "}
+                                  در حال انجام...
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  {currentStageIndex === ORDER_STAGES.length - 1 ? (
+                    <button
+                      onClick={() => setOrderStatus("shopping")}
+                      className="w-full text-white py-4 rounded-xl font-black shadow-lg"
+                      style={{ backgroundColor: brandColor }}
+                    >
+                      سفارش جدید
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setOrderStatus("shopping")}
+                      className="text-slate-500 font-bold bg-white border border-slate-200 px-6 py-3 rounded-xl shadow-sm text-sm"
+                    >
+                      بستن پیگیری
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -409,12 +573,13 @@ export const MinimalDemo = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [cart, setCart] = useState<any[]>([]);
   const [orderStatus, setOrderStatus] = useState<
-    "shopping" | "checkout" | "success"
+    "shopping" | "checkout" | "tracking"
   >("shopping");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeCategory, setActiveCategory] = useState(MOCK_CATEGORIES[0]?.id);
+  const [currentStageIndex, setCurrentStageIndex] = useState(0);
 
-  const brandColor = "#f43f5e"; // Rose
+  const brandColor = HEX_COLORS.emerald;
 
   const cartTotal = cart.reduce(
     (sum, item) => sum + (item.price || 0) * (item.qty || 1),
@@ -429,6 +594,7 @@ export const MinimalDemo = () => {
         ? p.map((i) => (i.id === product.id ? { ...i, qty: i.qty + 1 } : i))
         : [...p, { ...product, qty: 1 }],
     );
+
   const removeFromCart = (id: number) =>
     setCart((p) =>
       p.find((i) => i.id === id)?.qty > 1
@@ -440,72 +606,109 @@ export const MinimalDemo = () => {
     setIsSubmitting(true);
     setTimeout(() => {
       setIsSubmitting(false);
-      setOrderStatus("success");
+      setOrderStatus("tracking");
       setCart([]);
+      setCurrentStageIndex(0);
     }, 1500);
   };
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (
+      orderStatus === "tracking" &&
+      currentStageIndex < ORDER_STAGES.length - 1
+    ) {
+      timer = setTimeout(() => setCurrentStageIndex((prev) => prev + 1), 5000);
+    }
+    return () => clearTimeout(timer);
+  }, [orderStatus, currentStageIndex]);
 
   const filteredCategories = MOCK_CATEGORIES.map((cat) => ({
     ...cat,
     items: (cat.items || []).filter((item) => {
       const q = (searchQuery || "").toLowerCase().trim();
       if (!q) return true;
-      const n = (item.name || "").toLowerCase();
-      const d = (item.description || "").toLowerCase();
-      return n.includes(q) || d.includes(q);
+      return (
+        (item.name || "").includes(q) || (item.description || "").includes(q)
+      );
     }),
   })).filter((cat) => cat.items.length > 0);
 
   return (
     <div
-      className="min-h-screen bg-[#fafafa] flex justify-center font-sans text-zinc-900"
+      className="min-h-screen bg-white flex justify-center font-sans text-slate-800"
       dir="rtl"
     >
-      <div className="w-full max-w-md bg-[#fafafa] min-h-screen relative overflow-x-hidden selection:bg-zinc-200 flex flex-col">
-        <div className="pt-20 pb-10 px-8 flex flex-col items-center text-center">
-          <div className="w-20 h-20 rounded-full overflow-hidden mb-8 shadow-sm border border-zinc-200">
-            <img
-              src={LOGO_URL}
-              alt="logo"
-              className="w-full h-full object-cover"
-            />
+      <div className="w-full max-w-md bg-white min-h-screen shadow-2xl relative overflow-x-hidden pb-24 flex flex-col border-x border-slate-100">
+        {/* هدر مینیمال */}
+        <div className="pt-10 pb-6 px-6 flex flex-col items-center text-center bg-white relative z-10">
+          <div className="w-20 h-20 rounded-full border border-slate-200 overflow-hidden mb-4 shadow-sm">
+            <img src={MOCK_VENUE.logo} className="w-full h-full object-cover" />
           </div>
-          <h1 className="text-4xl font-black tracking-tighter mb-4">
-            کافه مینیمال
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+            {MOCK_VENUE.name}
           </h1>
-          <p
-            className="text-[11px] uppercase tracking-[0.3em] font-bold"
-            style={{ color: brandColor }}
-          >
-            Aesthetics of Taste
-          </p>
         </div>
 
-        <div className="px-8 mb-8 sticky top-4 z-50">
-          <div className="bg-white/90 backdrop-blur-md rounded-full shadow-sm border border-zinc-200 flex items-center px-5 py-3">
-            <Search className="text-zinc-400 shrink-0" size={18} />
+        {/* دکمه‌های خدمات */}
+        <div className="px-6 pb-6 flex gap-3 border-b border-slate-100">
+          {MOCK_VENUE.is_waiter_enabled && (
+            <button
+              onClick={() => alert("درخواست گارسون ثبت شد.")}
+              className="flex-1 bg-white border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center gap-2 hover:bg-slate-50"
+            >
+              <BellRing size={20} className="text-slate-600" />
+              <span className="text-[11px] font-bold text-slate-500">
+                احضار گارسون
+              </span>
+            </button>
+          )}
+          {MOCK_VENUE.is_chef_request_enabled && (
+            <button
+              onClick={() => alert("سفارش به آشپز ثبت شد.")}
+              className="flex-1 bg-white border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center gap-2 hover:bg-slate-50"
+            >
+              <ChefHat size={20} className="text-slate-600" />
+              <span className="text-[11px] font-bold text-slate-500">
+                سفارش به آشپز
+              </span>
+            </button>
+          )}
+        </div>
+
+        {/* جستجو مینیمال */}
+        <div className="px-6 py-4 sticky top-0 z-50 bg-white/90 backdrop-blur-md">
+          <div className="bg-slate-50 rounded-full flex items-center px-4 py-3">
+            <Search className="text-slate-400 shrink-0" size={18} />
             <input
               type="text"
               placeholder="جستجو..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-transparent border-none outline-none pr-3 text-zinc-800 font-bold text-sm"
+              className="w-full bg-transparent border-none outline-none pr-3 text-slate-700 font-bold text-sm"
             />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="text-slate-400"
+              >
+                <X size={16} />
+              </button>
+            )}
           </div>
         </div>
 
-        <div className="sticky top-[84px] z-40 px-6 mb-12 flex justify-center pointer-events-none">
-          <div className="bg-white/80 backdrop-blur-2xl border border-zinc-200/80 shadow-sm rounded-full p-1.5 flex gap-1 pointer-events-auto overflow-x-auto hide-scrollbar">
+        {/* تب‌های دسته‌بندی */}
+        <div className="sticky top-[76px] z-40 bg-white border-b border-slate-100 py-3">
+          <div
+            className="flex overflow-x-auto px-6 gap-6 hide-scrollbar"
+            style={{ scrollbarWidth: "none" }}
+          >
             {filteredCategories.map((cat) => (
               <button
                 key={cat.id}
                 onClick={() => setActiveCategory(cat.id)}
-                className="px-5 py-2.5 rounded-full text-[13px] font-bold transition-all"
-                style={{
-                  backgroundColor:
-                    activeCategory === cat.id ? brandColor : "transparent",
-                  color: activeCategory === cat.id ? "#fff" : "#a1a1aa",
-                }}
+                className={`shrink-0 pb-2 text-sm font-black transition-all border-b-2 ${activeCategory === cat.id ? "text-slate-900 border-slate-900" : "text-slate-400 border-transparent"}`}
               >
                 {cat.name}
               </button>
@@ -513,69 +716,66 @@ export const MinimalDemo = () => {
           </div>
         </div>
 
-        <div className="flex-1 px-8 space-y-24 pb-12">
+        {/* لیست محصولات */}
+        <div className="flex-1 p-6 space-y-8">
           {filteredCategories.map((category) => (
             <div key={category.id}>
-              <h2
-                className="text-3xl font-black mb-10 tracking-tight"
-                style={{ color: brandColor }}
-              >
-                {category.name}.
+              <h2 className="text-base font-black text-slate-800 mb-4">
+                {category.name}
               </h2>
-              <div className="flex flex-col gap-12">
+              <div className="space-y-6">
                 {category.items.map((item) => {
                   const qty = getItemQty(item.id);
                   return (
-                    <div key={item.id} className="flex gap-6 items-start group">
-                      <div className="flex-1 pt-1">
-                        <div className="flex justify-between items-baseline mb-2 gap-4">
-                          <h3 className="font-bold text-lg text-zinc-900">
-                            {item.name}
-                          </h3>
-                          <div className="flex-1 border-b border-dotted border-zinc-300 mx-2 opacity-30"></div>
-                          <div className="flex items-center gap-3">
-                            <div
-                              className="font-bold text-lg font-mono tracking-tighter"
-                              style={{ color: brandColor }}
-                            >
-                              {((item.price || 0) / 1000).toLocaleString(
-                                "fa-IR",
-                              )}
-                              <span className="text-[10px] font-sans text-zinc-400 mr-1 font-normal">
-                                هزار
-                              </span>
-                            </div>
-                            {qty > 0 ? (
-                              <div className="flex items-center gap-1.5 bg-zinc-100 border border-zinc-200 rounded-full px-2 py-1">
-                                <button onClick={() => removeFromCart(item.id)}>
-                                  <Minus size={12} />
-                                </button>
-                                <span className="text-xs font-mono font-black">
-                                  {qty}
-                                </span>
-                                <button onClick={() => addToCart(item)}>
-                                  <Plus size={12} />
-                                </button>
-                              </div>
-                            ) : (
-                              <button
-                                onClick={() => addToCart(item)}
-                                className="w-7 h-7 rounded-full border border-zinc-200 flex items-center justify-center text-zinc-400 transition-all"
-                              >
-                                <Plus size={14} />
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                        <p className="text-[13px] text-zinc-500 leading-relaxed max-w-[85%]">
-                          {item.description}
-                        </p>
-                      </div>
-                      <div className="w-20 h-28 shrink-0 rounded-2xl overflow-hidden bg-zinc-100 border border-zinc-200/50">
+                    <div
+                      key={item.id}
+                      className="flex gap-4 border-b border-slate-100 pb-6 last:border-0 last:pb-0"
+                    >
+                      <div className="w-24 h-24 shrink-0 rounded-2xl overflow-hidden bg-slate-100">
                         <img
                           src={item.image}
                           className="w-full h-full object-cover"
                         />
+                      </div>
+                      <div className="flex-1 flex flex-col justify-between">
+                        <div>
+                          <h3 className="font-bold text-slate-900 text-sm mb-1">
+                            {item.name}
+                          </h3>
+                          <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed font-medium">
+                            {item.description}
+                          </p>
+                        </div>
+                        <div className="flex justify-between items-center mt-2">
+                          <div className="font-bold text-sm tracking-tight text-slate-900">
+                            {item.price.toLocaleString("fa-IR")}{" "}
+                            <span className="text-[10px] text-slate-400">
+                              تومان
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            {qty > 0 && (
+                              <>
+                                <button
+                                  onClick={() => removeFromCart(item.id)}
+                                  className="w-7 h-7 rounded-full flex items-center justify-center text-slate-600 bg-slate-100"
+                                >
+                                  <Minus size={14} />
+                                </button>
+                                <span className="font-black text-sm w-4 text-center">
+                                  {qty}
+                                </span>
+                              </>
+                            )}
+                            <button
+                              onClick={() => addToCart(item)}
+                              className="w-7 h-7 rounded-full flex items-center justify-center text-white active:scale-95"
+                              style={{ backgroundColor: brandColor }}
+                            >
+                              <Plus size={14} />
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   );
@@ -583,72 +783,167 @@ export const MinimalDemo = () => {
               </div>
             </div>
           ))}
+
+          {/* درباره ما */}
+          <div className="mt-10 pt-10 border-t border-slate-100 text-center">
+            <h3 className="font-black text-slate-800 text-base mb-3">
+              درباره ما
+            </h3>
+            <p className="text-xs text-slate-500 leading-loose mb-6 font-medium px-4">
+              {MOCK_VENUE.about_us}
+            </p>
+            <div className="space-y-4 text-xs font-bold text-slate-600 flex flex-col items-center">
+              <div className="flex items-center gap-2">
+                <MapPin size={16} className="text-slate-400" />{" "}
+                {MOCK_VENUE.address}
+              </div>
+              <div className="flex items-center gap-2" dir="ltr">
+                <Phone size={16} className="text-slate-400" />{" "}
+                {MOCK_VENUE.phone}
+              </div>
+            </div>
+          </div>
         </div>
 
+        {/* سبد خرید شناور */}
         {orderStatus === "shopping" && cartItemCount > 0 && (
-          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-[400px] z-50 animate-in slide-in-from-bottom-10 fade-in duration-300">
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-3rem)] max-w-[350px] z-50 animate-in slide-in-from-bottom-10">
             <button
               onClick={() => setOrderStatus("checkout")}
-              className="w-full text-white p-4 rounded-full shadow-xl flex items-center justify-between"
-              style={{ backgroundColor: "#18181B" }}
+              className="w-full text-white px-6 py-4 rounded-full shadow-xl flex items-center justify-between active:scale-95"
+              style={{ backgroundColor: brandColor }}
             >
-              <div className="flex items-center gap-3">
-                <ShoppingCart size={24} />
-                <span className="font-bold text-sm">
-                  {cartItemCount} انتخاب شده
-                </span>
-              </div>
               <div className="flex items-center gap-2">
-                <span className="font-black text-lg">
-                  {cartTotal.toLocaleString("fa-IR")} تومان
-                </span>
+                <div className="bg-white/20 px-2 py-0.5 rounded-full text-xs font-black">
+                  {cartItemCount}
+                </div>
+                <span className="font-bold text-sm">تکمیل سفارش</span>
+              </div>
+              <div className="font-black text-sm">
+                {cartTotal.toLocaleString("fa-IR")} تومان
               </div>
             </button>
           </div>
         )}
 
+        {/* مودال‌های تسویه و پیگیری */}
         {orderStatus !== "shopping" && (
-          <div className="fixed inset-0 z-50 bg-zinc-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-4">
-            <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl flex flex-col p-8">
-              {orderStatus === "checkout" ? (
-                <>
+          <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4">
+            <div className="bg-white w-full max-w-md rounded-t-[32px] sm:rounded-[32px] shadow-2xl flex flex-col overflow-hidden max-h-[90vh]">
+              {orderStatus === "checkout" && (
+                <div className="p-8 overflow-y-auto">
                   <div className="flex justify-between items-center mb-8">
-                    <h3 className="font-black text-2xl tracking-tighter">
-                      سفارش شما.
+                    <h3 className="font-black text-xl text-slate-900">
+                      سفارش شما
                     </h3>
-                    <button onClick={() => setOrderStatus("shopping")}>
+                    <button
+                      onClick={() => setOrderStatus("shopping")}
+                      className="text-slate-400"
+                    >
                       <X size={24} />
                     </button>
+                  </div>
+                  <div className="space-y-4 mb-8">
+                    {cart.map((item: any) => (
+                      <div
+                        key={item.id}
+                        className="flex justify-between items-center text-sm border-b border-slate-100 pb-4"
+                      >
+                        <span className="font-bold text-slate-800">
+                          <span className="text-slate-400 ml-2">
+                            x{item.qty}
+                          </span>{" "}
+                          {item.name}
+                        </span>
+                        <span className="font-bold text-slate-600">
+                          {(item.price * item.qty).toLocaleString("fa-IR")}
+                        </span>
+                      </div>
+                    ))}
+                    <div className="flex justify-between items-center pt-4">
+                      <span className="font-bold text-slate-500">جمع کل</span>
+                      <span className="font-black text-lg text-slate-900">
+                        {cartTotal.toLocaleString("fa-IR")} تومان
+                      </span>
+                    </div>
                   </div>
                   <button
                     disabled={isSubmitting}
                     onClick={handleFinalCheckout}
-                    className="w-full text-white py-4 rounded-full font-black text-lg"
-                    style={{ backgroundColor: "#18181B" }}
+                    className="w-full text-white py-4 rounded-2xl font-bold flex justify-center items-center active:scale-95"
+                    style={{ backgroundColor: brandColor }}
                   >
                     {isSubmitting ? (
-                      <Loader2 className="animate-spin mx-auto" />
+                      <Loader2 className="animate-spin" />
                     ) : (
-                      "ثبت دمو"
+                      "پرداخت و ثبت"
                     )}
                   </button>
-                </>
-              ) : (
-                <div className="text-center py-10">
-                  <CheckCircle2
-                    size={80}
-                    className="mx-auto mb-6"
-                    style={{ color: brandColor }}
-                  />
-                  <h2 className="text-3xl font-black tracking-tighter mb-2">
-                    ثبت شد.
+                </div>
+              )}
+              {orderStatus === "tracking" && (
+                <div className="p-8 bg-white flex flex-col items-center text-center animate-in zoom-in-95 duration-300">
+                  <div className="w-16 h-16 rounded-full flex items-center justify-center mb-6 bg-slate-50 text-slate-800 border border-slate-100">
+                    <ShoppingBag size={28} strokeWidth={2} />
+                  </div>
+                  <h2 className="text-lg font-black text-slate-900 mb-1">
+                    سفارش ثبت شد
                   </h2>
-                  <button
-                    onClick={() => setOrderStatus("shopping")}
-                    className="mt-8 text-zinc-500 font-bold bg-zinc-100 px-8 py-3 rounded-full"
-                  >
-                    بستن
-                  </button>
+                  <p className="text-xs text-slate-500 mb-10 font-mono font-bold">
+                    فیش #1042
+                  </p>
+                  <div className="w-full relative mb-12 text-right px-4">
+                    <div className="absolute right-7 top-4 bottom-4 w-px bg-slate-200 z-0"></div>
+                    <div className="space-y-8 relative z-10">
+                      {ORDER_STAGES.map((stage, idx) => {
+                        const isActive = idx === currentStageIndex;
+                        const isCompleted = idx < currentStageIndex;
+                        const isPending = idx > currentStageIndex;
+                        return (
+                          <div
+                            key={stage.id}
+                            className={`flex items-center gap-6 transition-all duration-500 ${isPending ? "opacity-30" : ""}`}
+                          >
+                            <div
+                              className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 border-[3px] bg-white transition-colors z-10 ${isActive || isCompleted ? "border-slate-800" : "border-slate-300"}`}
+                            >
+                              {isCompleted && (
+                                <div className="w-2 h-2 rounded-full bg-slate-800"></div>
+                              )}
+                            </div>
+                            <div>
+                              <h4
+                                className={`font-bold text-sm ${isActive || isCompleted ? "text-slate-900" : "text-slate-500"}`}
+                              >
+                                {stage.label}
+                              </h4>
+                              {isActive && (
+                                <p className="text-[11px] font-bold text-slate-400 mt-1">
+                                  در حال انجام...
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  {currentStageIndex === ORDER_STAGES.length - 1 ? (
+                    <button
+                      onClick={() => setOrderStatus("shopping")}
+                      className="w-full text-white py-4 rounded-xl font-bold shadow-sm"
+                      style={{ backgroundColor: brandColor }}
+                    >
+                      سفارش مجدد
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setOrderStatus("shopping")}
+                      className="text-slate-500 font-bold bg-slate-50 px-6 py-3 rounded-full text-sm"
+                    >
+                      بستن پنجره
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -707,9 +1002,9 @@ export const ClassicDemo = () => {
     items: (cat.items || []).filter((item) => {
       const q = (searchQuery || "").toLowerCase().trim();
       if (!q) return true;
-      const n = (item.name || "").toLowerCase();
-      const d = (item.description || "").toLowerCase();
-      return n.includes(q) || d.includes(q);
+      return (
+        (item.name || "").includes(q) || (item.description || "").includes(q)
+      );
     }),
   })).filter((cat) => cat.items.length > 0);
 
@@ -732,7 +1027,10 @@ export const ClassicDemo = () => {
             style={{ borderColor: brandColor }}
           >
             <div className="w-full h-full rounded-full overflow-hidden bg-white flex justify-center items-center">
-              <img src={LOGO_URL} className="w-full h-full object-cover" />
+              <img
+                src={MOCK_VENUE.logo}
+                className="w-full h-full object-cover"
+              />
             </div>
           </div>
           <h1
@@ -892,7 +1190,7 @@ export const ClassicDemo = () => {
         )}
 
         {orderStatus !== "shopping" && (
-          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 bg-zinc-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-4">
             <div className="bg-white w-full max-w-md rounded-t-[32px] sm:rounded-[32px] flex flex-col p-6 border-4 border-double border-[#e8e4d9]">
               {orderStatus === "checkout" ? (
                 <>
