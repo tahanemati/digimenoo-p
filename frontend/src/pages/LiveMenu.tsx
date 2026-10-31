@@ -3,10 +3,10 @@ import { useParams } from "react-router-dom";
 import { publicApi } from "../service/api";
 import { Loader2, AlertCircle } from "lucide-react";
 
-// 🔴 ایمپورت قالب‌ها (دموهای بعدی را هم به مرور اینجا اضافه می‌کنی)
+// 🔴 ایمپورت قالب‌ها (مسیرها یکپارچه شدند)
 import { OneDemo } from "../pages/demos/OneDemo";
-// import { TwoDemo } from "./templates/TwoDemo";
-// import { ThreeDemo } from "./templates/ThreeDemo";
+import { TwoDemo } from "../pages/demos/TwoDemo";
+// import { ThreeDemo } from "../pages/demos/ThreeDemo";
 
 export const LiveMenu = () => {
   // گرفتن آدرس از URL (مثلاً cafe-dena)
@@ -34,7 +34,7 @@ export const LiveMenu = () => {
     fetchMenu();
   }, [slug]);
 
-  // 1. وضعیت بارگذاری (Loading)
+  // وضعیت بارگذاری (Loading)
   if (isLoading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 text-orange-500 gap-4">
@@ -46,7 +46,7 @@ export const LiveMenu = () => {
     );
   }
 
-  // 2. وضعیت خطا (رستوران پیدا نشد یا غیرفعال است)
+  // وضعیت خطا (رستوران پیدا نشد یا غیرفعال است)
   if (error || !menuData) {
     return (
       <div
@@ -66,18 +66,14 @@ export const LiveMenu = () => {
     );
   }
 
-  // 3. توزیع‌کننده قالب‌ها (Switch)
+  // توزیع‌کننده قالب‌ها (Switch)
   // بر اساس template_id که مدیر در پنل خود ثبت کرده، قالب مناسب را رندر می‌کند
   switch (menuData.template_id) {
     case "onedemo":
       return <OneDemo data={menuData} />;
 
     case "twodemo":
-      return (
-        <div className="min-h-screen flex items-center justify-center font-black text-slate-400">
-          قالب مینیمال (دمو ۲) در حال ساخت است...
-        </div>
-      );
+      return <TwoDemo data={menuData} />;
 
     case "threedemo":
       return (

@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Landing } from "./pages/Landing";
 import { Register } from "./pages/Register";
 import { Login } from "./pages/Login";
@@ -6,7 +6,7 @@ import { Dashboard } from "./pages/Dashboard";
 import { SetupVenue } from "./pages/SetupVenue";
 import { Venues } from "./pages/Venues";
 import { Support } from "./pages/Support";
-import { Wallet } from "./pages/Wallet"; // <--- ایمپورت صفحه جدید کیف پول
+// import { Wallet } from "./pages/Wallet";
 import { DashboardLayout } from "./components/DashboardLayout";
 import { VenueSettings } from "./pages/VenueSettings";
 import { Subscription } from "./pages/Subscription";
@@ -15,7 +15,7 @@ import { KitchenPanel } from "./pages/KitchenPanel";
 import { LiveMenu } from "./pages/LiveMenu";
 import { ForgotPassword } from "./pages/ForgotPassword";
 import { CompleteProfile } from "./pages/CompleteProfile";
-import { TeamManagement } from "./pages/TeamManagement";
+// import { TeamManagement } from "./pages/TeamManagement";
 import { OneDemo } from "./pages/demos/OneDemo";
 import { TwoDemo } from "./pages/demos/TwoDemo";
 import { ThreeDemo } from "./pages/demos/ThreeDemo";
@@ -38,6 +38,7 @@ function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/complete-profile" element={<CompleteProfile />} />
 
         <Route path="/onedemo" element={<OneDemo />} />
         <Route path="/twodemo" element={<TwoDemo />} />
@@ -55,17 +56,29 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/venues" element={<Venues />} />
             <Route path="/support" element={<Support />} />
-            <Route path="/wallet" element={<Wallet />} />{" "}
-            {/* <--- جایگزین شد */}
+
+            {/* 🔴 روت کیف پول غیرفعال و به داشبورد ریدایرکت شد */}
+            {/* <Route path="/wallet" element={<Wallet />} /> */}
+            <Route
+              path="/wallet"
+              element={<Navigate to="/dashboard" replace />}
+            />
+
             <Route path="/venue-settings" element={<VenueSettings />} />
             <Route path="/subscription" element={<Subscription />} />
             <Route path="/qr-builder" element={<QRBuilder />} />
             <Route path="/kitchen" element={<KitchenPanel />} />
-            <Route path="/team" element={<TeamManagement />} />
+
+            {/* 🔴 روت مدیریت تیم غیرفعال و به داشبورد ریدایرکت شد */}
+            {/* <Route path="/team" element={<TeamManagement />} /> */}
+            <Route
+              path="/team"
+              element={<Navigate to="/dashboard" replace />}
+            />
+
             <Route path="/products" element={<ProductManagement />} />
           </Route>
           <Route path="/setup-venue" element={<SetupVenue />} />
-          <Route path="/complete-profile" element={<CompleteProfile />} />
           <Route path="/waiter" element={<WaiterPanel />} />
         </Route>
 

@@ -25,16 +25,31 @@ export const Venues = () => {
   useEffect(() => {
     const fetchVenue = async () => {
       try {
-        const data = await venuesApi.getMyVenue();
+        const response = await venuesApi.getMyVenue();
+        // باز کردن جعبه دیتای بک‌اند
+        const data = response.data || response;
 
-        setHasVenue(true);
-
-        setVenueData({
-          ...data,
-          owner_name: "مدیر مجموعه",
-          owner_city: data.city,
-          plan_name: "اشتراک فعال",
-        });
+        if (data) {
+          setHasVenue(true);
+          setVenueData({
+            ...data,
+            name: data.name || data.Name || "رستوران من",
+            english_name: data.slug || data.Slug || data.english_name || "menu",
+            // 🔴 دریافت هوشمند وضعیت از بک‌اند (با پشتیبانی از حالت‌های مختلف دات‌نت)
+            status:
+              data.status ||
+              data.Status ||
+              data.venueStatus ||
+              data.VenueStatus ||
+              "approved",
+            owner_name: data.ownerName || data.OwnerName || "مدیر مجموعه",
+            owner_city: data.city || data.City || "ثبت نشده",
+            plan_name: data.planName || data.PlanName || "اشتراک فعال",
+            address: data.address || data.Address || "آدرس ثبت نشده",
+          });
+        } else {
+          setHasVenue(false);
+        }
       } catch (error: any) {
         setHasVenue(false);
         console.error("خطا در دریافت اطلاعات مجموعه", error);
@@ -67,7 +82,7 @@ export const Venues = () => {
         </h2>
         <p className="text-slate-500 mb-8 max-w-md font-medium leading-relaxed">
           برای استفاده از امکانات سیستم و مدیریت منو، ابتدا باید اطلاعات رستوران
-          یا کافه خود را ثبت کنید.
+          یا کافه خود را در دیجی‌منو ثبت کنید.
         </p>
         <Link
           to="/setup-venue"
@@ -80,11 +95,14 @@ export const Venues = () => {
   }
 
   // =======================
-  // بررسی وضعیت (Status)
+  // بررسی وضعیت (Status) دریافتی از سرور
   // =======================
-  const venueStatus = venueData?.status;
-  const isApproved = venueStatus === "approved";
-  const isRejected = venueStatus === "rejected";
+  const venueStatus = (venueData?.status || "").toLowerCase();
+  const isApproved =
+    venueStatus === "approved" ||
+    venueStatus === "active" ||
+    venueStatus === "1";
+  const isRejected = venueStatus === "rejected" || venueStatus === "suspended";
 
   return (
     <div
@@ -95,7 +113,6 @@ export const Venues = () => {
       <div className="absolute top-[-10%] right-[-5%] w-[400px] h-[400px] bg-orange-400/10 rounded-full blur-[100px] pointer-events-none" />
       <div className="absolute bottom-[20%] left-[-5%] w-[300px] h-[300px] bg-blue-400/5 rounded-full blur-[100px] pointer-events-none" />
 
-      {/* 🔴 کانتینر اصلی که جا مانده بود */}
       <div className="relative z-10 p-6 md:p-10 max-w-6xl mx-auto pb-20">
         {/* هدر صفحه */}
         <header className="mb-8">
@@ -103,13 +120,12 @@ export const Venues = () => {
             رستوران‌ها و مجموعه‌ها
           </h1>
           <p className="text-slate-500 text-sm font-medium">
-            پیگیری وضعیت درخواست‌ها و مشاهده مشخصات مجموعه
+            پیگیری وضعیت درخواست‌ها و مشاهده مشخصات مجموعه در دیجی‌منو
           </p>
         </header>
 
         {/* کارت اصلی شیشه‌ای */}
         <div className="bg-white/80 backdrop-blur-xl border border-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-[32px] p-6 md:p-10 relative overflow-hidden">
-          {/* افکت نوری پس‌زمینه داینامیک متناسب با وضعیت */}
           <div
             className={`absolute top-[-20%] right-[-10%] w-[500px] h-[500px] blur-[120px] pointer-events-none ${
               isApproved
@@ -131,7 +147,7 @@ export const Venues = () => {
                   {isApproved
                     ? "مجموعه شما با موفقیت تایید شده و کاملاً فعال است. هم‌اکنون می‌توانید منوی خود را مدیریت کنید."
                     : isRejected
-                      ? "متاسفانه درخواست ثبت مجموعه شما توسط کارشناسان ما رد شده است. لطفاً اشکالات را برطرف کنید."
+                      ? "متاسفانه درخواست ثبت مجموعه شما رد شده است. لطفاً اشکالات را برطرف کنید."
                       : "درخواست شما با موفقیت ثبت شده و در صف بررسی کارشناسان قرار دارد. شکیبا باشید."}
                 </p>
               </div>
@@ -162,7 +178,6 @@ export const Venues = () => {
 
             {/* تایم‌لاین (مراحل) */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16 relative">
-              {/* خط اتصال بین مراحل در دسکتاپ */}
               <div className="hidden md:block absolute top-6 right-12 left-12 h-0.5 bg-slate-100 z-0" />
 
               {/* مرحله ۱ */}
@@ -246,7 +261,7 @@ export const Venues = () => {
                   </div>
                   <div className="text-xs font-medium text-slate-500">
                     {isApproved
-                      ? "رستوران شما در سیستم MenuJet ساخته شد."
+                      ? "رستوران شما در دیجی‌منو ساخته شد."
                       : isRejected
                         ? "عملیات به دلیل رد اطلاعات متوقف شد."
                         : "پس از تایید کارشناس انجام می‌شود."}
@@ -282,7 +297,7 @@ export const Venues = () => {
                       مالک مجموعه
                     </div>
                     <div className="font-black text-slate-800 text-sm">
-                      {venueData?.owner_name || "---"}
+                      {venueData?.owner_name}
                     </div>
                   </div>
                 </div>
@@ -296,7 +311,7 @@ export const Venues = () => {
                       شهر
                     </div>
                     <div className="font-black text-slate-800 text-sm">
-                      {venueData?.owner_city || "---"}
+                      {venueData?.owner_city}
                     </div>
                   </div>
                 </div>
@@ -324,7 +339,7 @@ export const Venues = () => {
                       پکیج فعلی
                     </div>
                     <div className="font-black text-orange-500 text-sm">
-                      {venueData?.plan_name || "---"}
+                      {venueData?.plan_name}
                     </div>
                   </div>
                 </div>
@@ -339,12 +354,12 @@ export const Venues = () => {
                     </div>
                     <div className="flex flex-col gap-1 font-mono text-base text-orange-500 dir-ltr text-right font-black">
                       <a
-                        href={`/${venueData?.english_name}`}
+                        href={`https://digimenoo.ir/${venueData?.english_name}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="hover:text-orange-600 transition-colors flex items-center gap-1 justify-end bg-orange-50 px-3 py-1 rounded-lg border border-orange-100 w-fit ml-auto"
                       >
-                        <ChevronLeft size={16} /> menujet.ir/
+                        <ChevronLeft size={16} /> digimenoo.ir/
                         {venueData?.english_name}
                       </a>
                     </div>
@@ -360,14 +375,14 @@ export const Venues = () => {
                       آدرس فیزیکی مجموعه
                     </div>
                     <div className="font-black text-slate-800 text-sm leading-relaxed max-w-2xl">
-                      {venueData?.address || "---"}
+                      {venueData?.address}
                     </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* هشدارهای داینامیک فوتر متناسب با تم لایت */}
+            {/* هشدارهای داینامیک فوتر */}
             {isRejected ? (
               <div className="mt-8 bg-rose-50 border border-rose-200 rounded-2xl p-5 flex gap-3 items-start text-rose-700 shadow-sm">
                 <AlertCircle size={24} className="shrink-0 text-rose-500" />
@@ -382,8 +397,8 @@ export const Venues = () => {
                 <AlertCircle size={24} className="shrink-0 text-blue-500" />
                 <p className="text-sm leading-relaxed font-bold">
                   درخواست شما در صف بررسی است. پس از تایید، رستوران شما دقیقاً
-                  با همین اطلاعات در پلتفرم ساخته می‌شود و منوی دیجیتال در دسترس
-                  قرار می‌گیرد.
+                  با همین اطلاعات در دیجی‌منو ساخته می‌شود و منوی دیجیتال در
+                  دسترس قرار می‌گیرد.
                 </p>
               </div>
             ) : (
@@ -402,3 +417,5 @@ export const Venues = () => {
     </div>
   );
 };
+
+export default Venues;

@@ -11,17 +11,17 @@ import {
   Loader2,
   LayoutList,
   Search,
+  AlertTriangle,
 } from "lucide-react";
-// 🔴 venuesApi رو هم ایمپورت کردیم تا تنظیمات دوزبانه بودن رو چک کنیم
 import { menuApi, venuesApi } from "../service/api";
 
 type Product = {
   id: number;
   name: string;
-  name_en?: string; // 🔴 اضافه شد
+  name_en?: string;
   price: string;
   desc: string;
-  desc_en?: string; // 🔴 اضافه شد
+  desc_en?: string;
   image: string;
   stock?: number | null;
   is_available?: boolean;
@@ -30,7 +30,7 @@ type Product = {
 type Category = {
   id: number;
   name: string;
-  name_en?: string; // 🔴 اضافه شد
+  name_en?: string;
   items: Product[];
 };
 
@@ -42,9 +42,10 @@ export const ProductManagement = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // 🔴 استیت برای چک کردن دوزبانه بودن منو
-  const [isBilingual, setIsBilingual] = useState(false);
+  // 🔴 استیت جدید برای نمایش ارور کلی صفحه (مثل وقتی که رستوران ثبت نشده)
+  const [pageError, setPageError] = useState("");
 
+  const [isBilingual, setIsBilingual] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
 
   const [catModal, setCatModal] = useState<{
@@ -52,7 +53,7 @@ export const ProductManagement = () => {
     data: Category | null;
   }>({ isOpen: false, data: null });
   const [catFormName, setCatFormName] = useState("");
-  const [catFormNameEn, setCatFormNameEn] = useState(""); // 🔴 استیت نام انگلیسی دسته
+  const [catFormNameEn, setCatFormNameEn] = useState("");
 
   const [prodModal, setProdModal] = useState<{
     isOpen: boolean;
@@ -62,10 +63,10 @@ export const ProductManagement = () => {
 
   const [prodForm, setProdForm] = useState<{
     name: string;
-    name_en: string; // 🔴
+    name_en: string;
     price: string;
     desc: string;
-    desc_en: string; // 🔴
+    desc_en: string;
     stock: string;
     imagePreview: string;
     imageFile: File | null;
@@ -84,21 +85,21 @@ export const ProductManagement = () => {
 
   const prodImageRef = useRef<HTMLInputElement>(null);
 
-  // ============================
-  // 🔴 لود کردن همزمان منو و تنظیمات رستوران
-  // ============================
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // دریافت همزمان محصولات و تنظیمات کافه
         const [menuData, venueData] = await Promise.all([
           menuApi.getCategories(),
           venuesApi.getMyVenue(),
         ]);
         setCategories(menuData);
-        setIsBilingual(venueData.is_bilingual); // روشن یا خاموش بودن منوی انگلیسی
-      } catch (err) {
+        setIsBilingual(venueData.is_bilingual);
+      } catch (err: any) {
         console.error("خطا در دریافت اطلاعات:", err);
+        // 🔴 گرفتن خطای دقیق از بک‌اند (همون پیامی که تو views.py نوشتیم)
+        setPageError(
+          err?.detail || err?.error || "خطا در برقراری ارتباط با سرور.",
+        );
       } finally {
         setIsLoading(false);
       }
@@ -106,12 +107,9 @@ export const ProductManagement = () => {
     fetchData();
   }, []);
 
-  // ============================
-  // توابع دسته‌بندی
-  // ============================
   const openCatModal = (cat: Category | null = null) => {
     setCatFormName(cat ? cat.name : "");
-    setCatFormNameEn(cat ? cat.name_en || "" : ""); // 🔴 مقداردهی اولیه
+    setCatFormNameEn(cat ? cat.name_en || "" : "");
     setCatModal({ isOpen: true, data: cat });
   };
 
@@ -121,7 +119,7 @@ export const ProductManagement = () => {
     try {
       const payload = {
         name: catFormName,
-        name_en: catFormNameEn, // 🔴 ارسال به بک‌اند
+        name_en: catFormNameEn,
       };
 
       if (catModal.data) {
@@ -132,9 +130,10 @@ export const ProductManagement = () => {
       const data = await menuApi.getCategories();
       setCategories(data);
       setCatModal({ isOpen: false, data: null });
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("خطا در ذخیره دسته‌بندی.");
+      // 🔴 نمایش الرت با پیام خطای واقعی سرور
+      alert(err?.detail || err?.error || "خطا در ذخیره دسته‌بندی.");
     } finally {
       setIsSaving(false);
     }
@@ -147,24 +146,22 @@ export const ProductManagement = () => {
       try {
         await menuApi.deleteCategory(id);
         setCategories((cats) => cats.filter((c) => c.id !== id));
-      } catch (err) {
+      } catch (err: any) {
         console.error(err);
+        alert(err?.detail || "خطا در حذف دسته‌بندی.");
       }
     }
   };
 
-  // ============================
-  // توابع محصول
-  // ============================
   const openProdModal = (categoryId: number, prod: Product | null = null) => {
     setProdForm(
       prod
         ? {
             name: prod.name,
-            name_en: prod.name_en || "", // 🔴
+            name_en: prod.name_en || "",
             price: prod.price,
             desc: prod.desc || "",
-            desc_en: prod.desc_en || "", // 🔴
+            desc_en: prod.desc_en || "",
             stock:
               prod.stock !== null && prod.stock !== undefined
                 ? prod.stock.toString()
@@ -205,10 +202,8 @@ export const ProductManagement = () => {
       formData.append("desc", prodForm.desc);
       formData.append("is_available", String(prodForm.is_available));
 
-      // 🔴 ارسال فیلدهای انگلیسی اگر پر شده باشند
       if (prodForm.name_en) formData.append("name_en", prodForm.name_en);
       if (prodForm.desc_en) formData.append("desc_en", prodForm.desc_en);
-
       if (prodForm.stock) formData.append("stock", prodForm.stock);
       if (prodForm.imageFile) formData.append("image", prodForm.imageFile);
 
@@ -221,8 +216,10 @@ export const ProductManagement = () => {
       const data = await menuApi.getCategories();
       setCategories(data);
       setProdModal({ isOpen: false, categoryId: null, data: null });
-    } catch (err) {
+    } catch (err: any) {
       console.error("خطا در ذخیره محصول", err);
+      // 🔴 نمایش الرت هوشمند
+      alert(err?.detail || err?.error || "خطا در ذخیره محصول.");
     } finally {
       setIsSaving(false);
     }
@@ -239,8 +236,9 @@ export const ProductManagement = () => {
               : c,
           ),
         );
-      } catch (err) {
+      } catch (err: any) {
         console.error(err);
+        alert(err?.detail || "خطا در حذف محصول.");
       }
     }
   };
@@ -262,6 +260,36 @@ export const ProductManagement = () => {
         <Loader2 className="animate-spin text-orange-500" size={40} />
       </div>
     );
+
+  // =====================================
+  // 🔴 نمایش خطای دسترسی (نداشتن مجموعه)
+  // =====================================
+  if (pageError) {
+    return (
+      <div
+        className="min-h-[80vh] flex flex-col justify-center items-center p-6 animate-in fade-in zoom-in-95 duration-300"
+        dir="rtl"
+      >
+        <div className="bg-white max-w-md w-full rounded-[32px] p-8 shadow-2xl flex flex-col items-center text-center border border-rose-100">
+          <div className="w-20 h-20 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mb-6 shadow-inner">
+            <AlertTriangle size={40} />
+          </div>
+          <h2 className="text-xl font-black text-slate-800 mb-3">
+            دسترسی محدود شده
+          </h2>
+          <p className="text-[15px] font-bold text-slate-500 leading-loose mb-8">
+            {pageError}
+          </p>
+          <a
+            href="/setup-venue"
+            className="w-full bg-orange-500 hover:bg-orange-600 text-white py-4 rounded-2xl font-black flex justify-center items-center transition-colors shadow-lg shadow-orange-500/20"
+          >
+            ثبت اطلاعات مجموعه
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -327,7 +355,6 @@ export const ProductManagement = () => {
                     <h3 className="text-lg font-black text-slate-800 flex items-center gap-3">
                       <div className="w-1.5 h-6 bg-orange-500 rounded-full"></div>
                       {category.name}
-                      {/* 🔴 نمایش نام انگلیسی کنار دسته (فقط برای مدیر) */}
                       {isBilingual && category.name_en && (
                         <span
                           className="text-xs font-bold text-slate-400 bg-white px-2 py-1 rounded-lg border border-slate-200"
@@ -384,7 +411,6 @@ export const ProductManagement = () => {
                                   <h4 className="font-black text-slate-800 text-[15px] line-clamp-1">
                                     {item.name}
                                   </h4>
-                                  {/* 🔴 نمایش نام انگلیسی زیر محصول (فقط برای مدیر) */}
                                   {isBilingual && item.name_en && (
                                     <p
                                       className="text-[10px] font-bold text-blue-500"
@@ -458,7 +484,6 @@ export const ProductManagement = () => {
         )}
       </div>
 
-      {/* مدال دسته‌بندی */}
       {catModal.isOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-[32px] p-6 w-full max-w-sm shadow-2xl relative">
@@ -487,8 +512,6 @@ export const ProductManagement = () => {
                   autoFocus
                 />
               </div>
-
-              {/* 🔴 اینپوت انگلیسی که فقط در صورت دوزبانه بودن نمایش داده می‌شود */}
               {isBilingual && (
                 <div>
                   <label className="block text-xs font-bold text-blue-500 mb-2 ml-1">
@@ -521,7 +544,6 @@ export const ProductManagement = () => {
         </div>
       )}
 
-      {/* مدال محصول */}
       {prodModal.isOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-[32px] p-6 w-full max-w-md shadow-2xl relative max-h-[90vh] overflow-y-auto hide-scrollbar">
@@ -618,8 +640,6 @@ export const ProductManagement = () => {
                     className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 px-4 focus:border-orange-500 text-sm font-bold"
                   />
                 </div>
-
-                {/* 🔴 اینپوت انگلیسی نام محصول */}
                 {isBilingual && (
                   <div>
                     <label className="block text-xs font-bold text-blue-500 mb-2 ml-1">
@@ -685,8 +705,6 @@ export const ProductManagement = () => {
                     className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 px-4 focus:border-orange-500 text-sm font-medium resize-none"
                   ></textarea>
                 </div>
-
-                {/* 🔴 اینپوت انگلیسی توضیحات */}
                 {isBilingual && (
                   <div>
                     <label className="block text-xs font-bold text-blue-500 mb-2 ml-1">

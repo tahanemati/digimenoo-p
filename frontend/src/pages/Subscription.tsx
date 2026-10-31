@@ -12,8 +12,11 @@ import {
   Gift,
   TrendingUp,
   Lock,
+  Store,
+  ArrowRight,
 } from "lucide-react";
 import { subscriptionApi } from "../service/api";
+import { Link } from "react-router-dom";
 
 type DurationType = "3" | "6" | "12";
 
@@ -28,6 +31,9 @@ export const Subscription = () => {
 
   const [showHistory, setShowHistory] = useState(false);
   const [historyData, setHistoryData] = useState<any[]>([]);
+
+  // 🔴 استیت جدید برای گرفتن ارور (نداشتن مجموعه)
+  const [pageError, setPageError] = useState("");
 
   // =======================
   // اتصال زنده به دیتابیس جنگو
@@ -57,8 +63,14 @@ export const Subscription = () => {
       setPlans(data.plans);
       setCurrentPlan(data.subscription);
       setHistoryData(formattedHistory);
-    } catch (err) {
+    } catch (err: any) {
       console.error("خطا در دریافت اطلاعات اشتراک", err);
+      // 🔴 دریافت متن دقیق ارور از بک‌اند
+      setPageError(
+        err?.detail ||
+          err?.error ||
+          "برای مشاهده اشتراک‌ها، ابتدا باید اطلاعات مجموعه خود را ثبت کنید.",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -94,15 +106,54 @@ export const Subscription = () => {
     );
   }
 
-  if (!currentPlan) return null;
+  // =====================================
+  // 🔴 طراحی خلاقانه برای زمانی که مجموعه ثبت نشده یا پلن لود نمیشه
+  // =====================================
+  if (pageError || !currentPlan) {
+    return (
+      <div
+        className="min-h-[80vh] flex flex-col justify-center items-center p-6 animate-in fade-in zoom-in-95 duration-500"
+        dir="rtl"
+      >
+        <div className="bg-white max-w-md w-full rounded-[32px] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.05)] border border-slate-100 flex flex-col items-center text-center relative overflow-hidden">
+          {/* افکت پس‌زمینه فرم */}
+          <div className="absolute -top-20 -right-20 w-40 h-40 bg-orange-400/10 rounded-full blur-3xl pointer-events-none"></div>
 
+          <div className="w-24 h-24 bg-gradient-to-br from-orange-50 to-orange-100 text-orange-500 rounded-full flex items-center justify-center mb-6 shadow-inner border border-orange-200 relative">
+            <Store size={40} strokeWidth={2} />
+            <div className="absolute -bottom-2 -right-2 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-md">
+              <Lock size={18} className="text-slate-400" />
+            </div>
+          </div>
+
+          <h2 className="text-2xl font-black text-slate-800 mb-3 tracking-tight">
+            اولین قدم در <span className="text-orange-500">کیومیزبان</span>
+          </h2>
+          <p className="text-[14px] font-bold text-slate-500 leading-loose mb-8 px-4">
+            {pageError ||
+              "برای مشاهده و مدیریت پلن‌های اشتراک، ابتدا باید اطلاعات رستوران یا کافه خود را در سیستم ثبت کنید."}
+          </p>
+
+          <Link
+            to="/setup-venue"
+            className="w-full bg-slate-900 hover:bg-slate-800 text-white py-4 rounded-2xl font-black flex justify-center items-center gap-2 transition-all shadow-xl shadow-slate-900/20 hover:-translate-y-1"
+          >
+            ایجاد مجموعه جدید <ArrowLeft size={18} />
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // =====================================
+  // ادامه‌ی کدهای اصلی صفحه (وقتی پلن با موفقیت لود شده)
+  // =====================================
   const isExpired = currentPlan.days_left <= 0;
   const progressPercentage =
     ((currentPlan.total_days - currentPlan.days_left) /
       currentPlan.total_days) *
     100;
 
-  // 🔴 محاسبه اعتبار (دقیقاً کل مبلغ پلن فعلی، بدون کسر روزانه)
   let userCredit = 0;
   const activePlanCode = (
     currentPlan.plan_code ||
@@ -119,8 +170,6 @@ export const Subscription = () => {
       if (activePlanCode.includes("6")) activeDuration = "6";
       if (activePlanCode.includes("12") || activePlanCode.includes("year"))
         activeDuration = "12";
-
-      // کسر کل مبلغی که برای پلن فعلی پرداخت شده
       userCredit = currentBasePlan.prices[activeDuration] || 0;
     }
   }
@@ -152,22 +201,10 @@ export const Subscription = () => {
         </header>
 
         <div
-          className={`bg-white/80 backdrop-blur-xl border rounded-[32px] p-6 md:p-8 mb-12 relative overflow-hidden transition-all shadow-[0_10px_40px_rgb(0,0,0,0.03)] ${
-            isExpired
-              ? "border-rose-200"
-              : currentPlan.is_trial_mode
-                ? "border-amber-200"
-                : "border-emerald-200"
-          }`}
+          className={`bg-white/80 backdrop-blur-xl border rounded-[32px] p-6 md:p-8 mb-12 relative overflow-hidden transition-all shadow-[0_10px_40px_rgb(0,0,0,0.03)] ${isExpired ? "border-rose-200" : currentPlan.is_trial_mode ? "border-amber-200" : "border-emerald-200"}`}
         >
           <div
-            className={`absolute -top-24 -left-24 w-64 h-64 blur-[80px] rounded-full pointer-events-none ${
-              isExpired
-                ? "bg-rose-400/20"
-                : currentPlan.is_trial_mode
-                  ? "bg-amber-400/20"
-                  : "bg-emerald-400/20"
-            }`}
+            className={`absolute -top-24 -left-24 w-64 h-64 blur-[80px] rounded-full pointer-events-none ${isExpired ? "bg-rose-400/20" : currentPlan.is_trial_mode ? "bg-amber-400/20" : "bg-emerald-400/20"}`}
           ></div>
 
           <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-8">
@@ -224,13 +261,7 @@ export const Subscription = () => {
                 </div>
                 <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-200/50 shadow-inner">
                   <div
-                    className={`h-full rounded-full transition-all duration-1000 ${
-                      isExpired
-                        ? "bg-rose-500"
-                        : currentPlan.is_trial_mode
-                          ? "bg-gradient-to-r from-amber-400 to-amber-500"
-                          : "bg-gradient-to-r from-emerald-400 to-emerald-500"
-                    }`}
+                    className={`h-full rounded-full transition-all duration-1000 ${isExpired ? "bg-rose-500" : currentPlan.is_trial_mode ? "bg-gradient-to-r from-amber-400 to-amber-500" : "bg-gradient-to-r from-emerald-400 to-emerald-500"}`}
                     style={{ width: `${Math.min(progressPercentage, 100)}%` }}
                   ></div>
                 </div>
@@ -244,13 +275,7 @@ export const Subscription = () => {
                     .getElementById("plans-section")
                     ?.scrollIntoView({ behavior: "smooth" })
                 }
-                className={`w-full lg:w-auto px-8 py-4 rounded-2xl font-black transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2 shadow-lg ${
-                  isExpired
-                    ? "bg-rose-500 hover:bg-rose-600 text-white shadow-rose-500/25"
-                    : currentPlan.is_trial_mode
-                      ? "bg-orange-500 hover:bg-orange-600 text-white shadow-orange-500/25"
-                      : "bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/25"
-                }`}
+                className={`w-full lg:w-auto px-8 py-4 rounded-2xl font-black transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2 shadow-lg ${isExpired ? "bg-rose-500 hover:bg-rose-600 text-white shadow-rose-500/25" : currentPlan.is_trial_mode ? "bg-orange-500 hover:bg-orange-600 text-white shadow-orange-500/25" : "bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/25"}`}
               >
                 {isExpired
                   ? "خرید پلن و فعالسازی مجدد"
@@ -299,11 +324,7 @@ export const Subscription = () => {
                 <button
                   key={d.id}
                   onClick={() => setDuration(d.id as DurationType)}
-                  className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${
-                    duration === d.id
-                      ? "bg-orange-500 text-white shadow-md shadow-orange-500/20"
-                      : "text-slate-500 hover:text-slate-800 hover:bg-slate-50"
-                  }`}
+                  className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${duration === d.id ? "bg-orange-500 text-white shadow-md shadow-orange-500/20" : "text-slate-500 hover:text-slate-800 hover:bg-slate-50"}`}
                 >
                   {d.label}
                 </button>
@@ -317,25 +338,20 @@ export const Subscription = () => {
             هیچ پلنی از سمت مدیریت سایت (جنگو) تعریف نشده است!
           </div>
         ) : (
-          /* 🔴 گرید ۲ ستونه برای نمایش بی‌نقص ۲ پلن (استاندارد و پلاس) */
           <div className="grid grid-cols-1 md:grid-cols-2 max-w-5xl mx-auto gap-6 lg:gap-8 items-start relative z-10">
             {plans.map((plan) => {
               const IconComponent =
                 (Icons as any)[plan.icon] || Icons.HelpCircle;
-
               const isCurrentPlanType = activePlanCode.includes(
                 plan.id.toLowerCase(),
               );
               const fullPrice = plan.prices[duration] || 0;
-
-              // ارتقا فقط در صورتی است که پلن متفاوت باشد و قیمت پلن جدید از اعتبار کاربر بیشتر باشد
               const isUpgrade =
                 !isCurrentPlanType &&
                 !isExpired &&
                 !currentPlan.is_trial_mode &&
                 userCredit > 0 &&
                 fullPrice > userCredit;
-
               const finalPrice = isUpgrade
                 ? Math.max(0, fullPrice - userCredit)
                 : fullPrice;
@@ -343,11 +359,7 @@ export const Subscription = () => {
               return (
                 <div
                   key={plan.id}
-                  className={`relative bg-white border-2 rounded-[32px] p-8 transition-all duration-300 group shadow-sm hover:shadow-xl ${
-                    plan.isPopular
-                      ? "border-orange-500 shadow-orange-500/10 lg:-translate-y-4"
-                      : "border-slate-100 hover:border-orange-200"
-                  }`}
+                  className={`relative bg-white border-2 rounded-[32px] p-8 transition-all duration-300 group shadow-sm hover:shadow-xl ${plan.isPopular ? "border-orange-500 shadow-orange-500/10 lg:-translate-y-4" : "border-slate-100 hover:border-orange-200"}`}
                 >
                   {plan.isPopular && (
                     <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-orange-500 text-white px-5 py-1.5 rounded-full text-xs font-black shadow-md shadow-orange-500/20">
@@ -390,7 +402,6 @@ export const Subscription = () => {
                       </span>
                     </div>
 
-                    {/* 🔴 نمایش کسر دقیق کل مبلغ پرداختی قبلی */}
                     {isUpgrade && (
                       <div className="mt-3 flex items-center gap-1.5 bg-emerald-50 text-emerald-600 px-3 py-2 rounded-xl text-xs font-bold border border-emerald-100">
                         <TrendingUp size={14} /> کسر کامل{" "}
@@ -417,11 +428,7 @@ export const Subscription = () => {
                   <button
                     onClick={() => handleRenew(plan.id)}
                     disabled={isProcessing}
-                    className={`w-full py-4 rounded-2xl font-black transition-all text-[15px] flex justify-center items-center gap-2 ${
-                      plan.isPopular
-                        ? "bg-orange-500 hover:bg-orange-600 text-white shadow-lg shadow-orange-500/25 hover:-translate-y-0.5"
-                        : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
-                    }`}
+                    className={`w-full py-4 rounded-2xl font-black transition-all text-[15px] flex justify-center items-center gap-2 ${plan.isPopular ? "bg-orange-500 hover:bg-orange-600 text-white shadow-lg shadow-orange-500/25 hover:-translate-y-0.5" : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"}`}
                   >
                     {isProcessing ? (
                       <Loader2 className="animate-spin" size={20} />

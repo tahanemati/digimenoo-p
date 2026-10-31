@@ -1,522 +1,228 @@
-// آدرس پایه بک‌اند جنگو
-export const API_BASE_URL = "http://127.0.0.1:8000/api";
-
-// هدر احراز هویت (خواندن در لحظه توکن برای جلوگیری از باگ)
-export const getAuthHeader = () => {
-  const token = localStorage.getItem("access_token");
-  if (token) {
-    return { Authorization: `Bearer ${token}` };
-  }
-  return {};
-};
+import axios from "axios";
 
 // ==========================================
-// 1. احراز هویت و حساب کاربری (Auth & Accounts)
+// ۱. پیکربندی اولیه کلاینت Axios
 // ==========================================
+export const apiClient = axios.create({
+  baseURL: "http://localhost:5000/api", // در زمان پابلیش، این آدرس باید تغییر کند
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
+
+// ==========================================
+// ۲. رهگیرها (Interceptors)
+// ==========================================
+
+// الف) رهگیر ریکوئست: ردیاب و تزریق‌کننده توکن
+apiClient.interceptors.request.use(
+  (config) => {
+    // استخراج توکن از لوکال استوریج
+    const token =
+      localStorage.getItem("access_token") || localStorage.getItem("token");
+
+    if (token) {
+      config.headers = config.headers || {};
+      // چسباندن توکن به هدر (فاصله بعد از Bearer الزامی است)
+      config.headers.Authorization = `Bearer ${token}`;
+      console.log("✅ توکن به ریکوئست متصل شد.");
+    } else {
+      console.warn("❌ هشدار: توکنی در لوکال استوریج یافت نشد.");
+    }
+
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  },
+);
+
+// ب) رهگیر ریسپانس: مدیریت ارورهای شبکه و هندلینگ ۴۰۱
+apiClient.interceptors.response.use(
+  (response) => {
+    // اگر ریکوئست با موفقیت انجام شد، خود ریسپانس رو برگردون
+    return response;
+  },
+  (error) => {
+    // لاگ کردن کل ارور برای دیباگ راحت‌تر در کنسول مرورگر
+    console.error("🔥 ارور رهگیری شده در Axios:", error);
+
+    // خروج خودکار در صورت انقضای توکن (۴۰۱)
+    if (error.response?.status === 401) {
+      console.warn("🔒 ارور 401: توکن منقضی یا نامعتبر است. خروج خودکار...");
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
+      localStorage.removeItem("role");
+      window.location.href = "/login";
+      return Promise.reject(error); // متوقف کردن پروسه
+    }
+
+    // استخراج ارورهای دقیق ولیدیشن C#
+    let errorMessage = "خطا در ارتباط با سرور";
+
+    if (error.response?.data) {
+      const data = error.response.data;
+      if (data.errors) {
+        const firstKey = Object.keys(data.errors)[0];
+        errorMessage = data.errors[firstKey][0];
+      } else if (data.message || data.detail || data.title) {
+        errorMessage = data.message || data.detail || data.title;
+      } else if (typeof data === "string") {
+        errorMessage = data;
+      }
+    }
+
+    // 🔴 تغییر حیاتی: به جای قایم کردن ارور واقعی پشت یک استرینگ ساده،
+    // خود آبجکتِ ارور رو همراه با پیام دستکاری شده برمی‌گردونیم.
+    // اینطوری در فایل‌های UI (مثل SetupVenue) ارور 403 دقیقاً نشون داده میشه.
+    error.message = errorMessage;
+    return Promise.reject(error);
+  },
+);
+
+// ==========================================
+// ۳. توابع API با ساختار هماهنگ با Swagger
+// ==========================================
+
 export const authApi = {
-  // ارسال پیامک کد تایید (OTP)
-  sendOtp: async (phone_number: string) => {
-    const res = await fetch(`${API_BASE_URL}/accounts/send-otp/`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phone_number }),
-    });
-    if (!res.ok) throw await res.json();
-    return await res.json();
+  // لاگین
+  login: async (credentials: { mobile: string; password: string }) => {
+    const res = await apiClient.post("/Authentication/login", credentials);
+    return res.data;
   },
 
-  // بررسی و تایید کد پیامک
-  verifyOtp: async (phone_number: string, otp: string) => {
-    const res = await fetch(`${API_BASE_URL}/accounts/verify-otp/`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phone_number, otp }),
+  // ثبت‌نام (ارسال کد)
+  sendOtp: async (mobileNumber: string) => {
+    const res = await apiClient.post("/Registration/register", {
+      mobile: mobileNumber,
+      password: "User@123456", // پسورد موقت
     });
-    if (!res.ok) throw await res.json();
-    return await res.json();
+    return res.data;
   },
 
-  // لاگین پرسنل (صندوق‌دار، گارسون، آشپز) با شماره و رمز عبور
-  login: async (data: {
-    phone_number?: string;
-    phone?: string;
-    password: string;
-  }) => {
-    const res = await fetch(`${API_BASE_URL}/accounts/staff-login/`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
+  // تایید کد
+  verifyOtp: async (mobileNumber: string, code: string) => {
+    const res = await apiClient.post("/Registration/verify", {
+      mobile: mobileNumber,
+      code: code,
     });
-    if (!res.ok) throw await res.json();
-    return await res.json();
+    return res.data;
   },
 
-  // تکمیل اطلاعات پروفایل بعد از اولین ثبت نام مدیر
+  // ارسال مجدد کد
+  resendOtp: async (mobileNumber: string) => {
+    const res = await apiClient.post("/Registration/resend-code", {
+      mobile: mobileNumber,
+    });
+    return res.data;
+  },
+
+  // تکمیل اطلاعات حساب
   completeRegistration: async (data: {
-    first_name: string;
-    last_name: string;
+    mobile: string;
+    name: string;
+    lastName: string;
     password: string;
+    confirmPassword: string;
   }) => {
-    const res = await fetch(`${API_BASE_URL}/accounts/complete-profile/`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...getAuthHeader(),
-      },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) throw await res.json();
-    return await res.json();
+    const res = await apiClient.post("/Registration/complete", data);
+    return res.data;
   },
 
-  // دریافت وضعیت حساب برای رندر کردن داشبورد
+  // وضعیت داشبورد و مراحل Onboarding
   getDashboardStatus: async () => {
-    const res = await fetch(`${API_BASE_URL}/accounts/dashboard-status/`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        ...getAuthHeader(),
-      },
-    });
-    if (!res.ok) throw await res.json();
-    return await res.json();
-  },
-
-  // فراموشی رمز عبور - ارسال کد
-  sendForgotPasswordOtp: async (phone_number: string) => {
-    const res = await fetch(
-      `${API_BASE_URL}/accounts/forgot-password/send-otp/`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone_number }),
-      },
-    );
-    if (!res.ok) throw await res.json();
-    return await res.json();
-  },
-
-  // فراموشی رمز عبور - تایید کد
-  verifyForgotPasswordOtp: async (phone_number: string, code: string) => {
-    const res = await fetch(
-      `${API_BASE_URL}/accounts/forgot-password/verify-otp/`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone_number, code }),
-      },
-    );
-    if (!res.ok) throw await res.json();
-    return await res.json();
-  },
-
-  // فراموشی رمز عبور - تنظیم رمز جدید
-  resetPassword: async (data: any) => {
-    const res = await fetch(`${API_BASE_URL}/accounts/reset-password/`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) throw await res.json();
-    return await res.json();
+    const res = await apiClient.get("/Restaurant/onboarding-status");
+    return res.data;
   },
 };
 
-// ==========================================
-// 2. مدیریت رستوران‌ها (Venues)
-// ==========================================
+// =======================
+// 🔴 توابع مربوط به رستوران / مجموعه (منطبق با Swagger)
+// =======================
 export const venuesApi = {
-  createVenue: async (data: any) => {
-    const res = await fetch(`${API_BASE_URL}/venues/create/`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...getAuthHeader(),
-      },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) throw await res.json();
-    return await res.json();
+  // ۱. ثبت اولیه رستوران (نام و اسلاگ)
+  createVenue: async (data: { name: string; slug: string }) => {
+    const res = await apiClient.post("/Restaurant", data);
+    return res.data;
   },
 
+  // ۲. تکمیل اطلاعات مکانی رستوران
+  completeVenue: async (data: {
+    city: string;
+    tableCount: number;
+    phone: string;
+    address: string;
+  }) => {
+    const res = await apiClient.put("/Restaurant/complete", data);
+    return res.data;
+  },
+
+  // ۳. دریافت کامل اطلاعات رستوران من (استفاده در صفحه تنظیمات)
   getMyVenue: async () => {
-    const res = await fetch(`${API_BASE_URL}/venues/me/`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        ...getAuthHeader(),
-      },
-    });
-    if (!res.ok) throw await res.json();
-    return await res.json();
+    const res = await apiClient.get("/Restaurant/mine");
+    return res.data;
   },
 
-  updateVenueSettings: async (formData: FormData) => {
-    const res = await fetch(`${API_BASE_URL}/venues/me/`, {
-      method: "PATCH",
-      headers: { ...getAuthHeader() },
-      body: formData,
-    });
-    if (!res.ok) throw await res.json();
-    return await res.json();
+  // ۴. آپدیت تنظیمات و امکانات
+  updateSettings: async (data: {
+    orderingEnabled: boolean;
+    bilingual: boolean;
+    callWaiterEnabled: boolean;
+    callChefEnabled: boolean;
+    aboutUsFa: string;
+    aboutUsEn: string;
+  }) => {
+    const res = await apiClient.put("/Restaurant/settings", data);
+    return res.data;
   },
-  getTemplates: async () => {
-    const res = await fetch(`${API_BASE_URL}/venues/templates/`, {
-      method: "GET",
-      headers: { "Content-Type": "application/json", ...getAuthHeader() },
+
+  // ۵. آپلود لوگو
+  uploadLogo: async (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await apiClient.post("/Restaurant/logo", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
     });
-    if (!res.ok) throw await res.json();
-    return await res.json();
+    return res.data?.logoUrl || res.data?.url || res.data;
+  },
+
+  // ۶. آپدیت برندینگ و قالب
+  updateBranding: async (data: { logoUrl: string; theme: string }) => {
+    const res = await apiClient.put("/Restaurant/branding", data);
+    return res.data;
   },
 };
 
-// ==========================================
-// درخواست‌های عمومی (منوی مشتری)
-// ==========================================
-
-// ==========================================
-// 3. مدیریت اشتراک‌ها (Subscriptions)
-// ==========================================
-export const subscriptionApi = {
-  getData: async () => {
-    const res = await fetch(`${API_BASE_URL}/subscription/data/`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        ...getAuthHeader(),
-      },
-    });
-    if (!res.ok) throw await res.json();
-    return await res.json();
-  },
-
-  purchase: async (plan_code: string, duration: string) => {
-    const res = await fetch(`${API_BASE_URL}/subscription/purchase/`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...getAuthHeader(),
-      },
-      body: JSON.stringify({ plan_code, duration }),
-    });
-    if (!res.ok) throw await res.json();
-    return await res.json();
-  },
+// =======================
+// سایر توابع API (آینده‌نگرانه)
+// =======================
+export const restaurantApi = {
+  // برای جلوگیری از ارور داپلیکیت، از venuesApi استفاده کنید
+  getMyRestaurant: async () => (await apiClient.get("/Restaurant/mine")).data,
 };
 
-// ==========================================
-// 4. مدیریت تیم و پرسنل (Team)
-// ==========================================
-export const teamApi = {
-  getStaff: async () => {
-    const res = await fetch(`${API_BASE_URL}/venues/staff/`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        ...getAuthHeader(),
-      },
-    });
-    if (!res.ok) throw await res.json();
-    return await res.json();
-  },
-
-  addStaff: async (data: any) => {
-    // کلمه api رو از اول مسیر حذف کردم
-    const res = await fetch(`${API_BASE_URL}/accounts/staff/add/`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...getAuthHeader() },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) throw await res.json();
-    return await res.json();
-  },
-};
-
-// ==========================================
-// 5. آشپزخانه و سفارشات زنده (Kitchen)
-// ==========================================
-export const kitchenApi = {
-  getOrders: async () => {
-    const res = await fetch(`${API_BASE_URL}/kitchen/orders/`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        ...getAuthHeader(),
-      },
-    });
-
-    if (res.status === 404) return [];
-    if (!res.ok) throw await res.json();
-    return await res.json();
-  },
-};
-// ==========================================
-// 6. منوی عمومی مشتریان (Public API)
-// ==========================================
-export const publicApi = {
-  getLiveMenu: async (slug: string) => {
-    // 🔴 دقت کن که اینجا از getAuthHeader استفاده نمی‌کنیم چون مشتری لاگین نیست
-    const res = await fetch(`${API_BASE_URL}/menu/public/${slug}/`);
-    if (!res.ok) throw await res.json();
-    return await res.json();
-  },
-};
-
-// 🔴 این بخش اصلاح شد و به جای api.post از fetch استاندارد استفاده می‌کند
-export const ordersApi = {
-  // 🍔 ثبت سفارش از طرف مشتری
-  createOrder: async (venueSlug: string, data: any) => {
-    const res = await fetch(
-      `${API_BASE_URL}/orders/public/${venueSlug}/create-order/`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          // 🔴 اینجا getAuthHeader نیاز نیست چون مشتری لاگین نکرده
-        },
-        body: JSON.stringify(data),
-      },
-    );
-    if (!res.ok) throw await res.json();
-    return await res.json();
-  },
-
-  // 👨‍🍳 دریافت زنده سفارشات و مراحل برای آشپزخانه
-  getKitchenOrders: async () => {
-    const res = await fetch(`${API_BASE_URL}/orders/kitchen/orders/`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        ...getAuthHeader(),
-      },
-    });
-    if (!res.ok) throw await res.json();
-    return await res.json();
-  },
-
-  // 🔥 انتقال سفارش به مرحله بعد
-  advanceOrder: async (orderId: number) => {
-    const res = await fetch(
-      `${API_BASE_URL}/orders/kitchen/orders/${orderId}/advance/`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...getAuthHeader(),
-        },
-      },
-    );
-    if (!res.ok) throw await res.json();
-    return await res.json();
-  },
-
-  // 💳 تسویه حساب سفارش
-  payOrder: async (orderId: number) => {
-    const res = await fetch(
-      `${API_BASE_URL}/orders/kitchen/orders/${orderId}/pay/`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...getAuthHeader(),
-        },
-      },
-    );
-    if (!res.ok) throw await res.json();
-    return await res.json();
-  },
-  // 📍 رهگیری زنده وضعیت سفارش توسط مشتری
-  getOrderStatus: async (orderId: number) => {
-    const res = await fetch(
-      `${API_BASE_URL}/orders/public/order-status/${orderId}/`,
-    );
-    if (!res.ok) throw await res.json();
-    return await res.json();
-  },
-  // 🔴 ذخیره مراحل داینامیک پخت (مخصوص پنل تنظیمات آشپزخانه)
-  updateStages: async (stages: any[]) => {
-    const res = await fetch(`${API_BASE_URL}/orders/kitchen/stages/`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...getAuthHeader(),
-      },
-      body: JSON.stringify({ stages }),
-    });
-    if (!res.ok) throw await res.json();
-    return await res.json();
-  },
-  // 🛎️ ارسال درخواست گارسون یا آشپز
-  // 🔴 ارسال درخواست گارسون یا آشپز (توسط مشتری)
-  callStaff: async (
-    venueSlug: string,
-    data: { table_number: string; call_type: string },
-  ) => {
-    const res = await fetch(
-      `${API_BASE_URL}/orders/public/${venueSlug}/call/`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      },
-    );
-    if (!res.ok) throw await res.json();
-    return await res.json();
-  },
-
-  // ✅ زدن تیک انجام شد برای درخواست میز
-  resolveCall: async (callId: number) => {
-    const res = await fetch(
-      `${API_BASE_URL}/orders/kitchen/calls/${callId}/resolve/`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...getAuthHeader() },
-      },
-    );
-    if (!res.ok) throw await res.json();
-    return await res.json();
-  },
-};
-// ==========================================
-// 7. مدیریت منو و محصولات (Menu & Products)
-// ==========================================
-// ==========================================
-// 7. مدیریت منو و محصولات (Menu & Products)
-// ==========================================
 export const menuApi = {
-  // دریافت کل دسته‌بندی‌ها و محصولات داخلشان
-  getCategories: async () => {
-    const res = await fetch(`${API_BASE_URL}/menu/categories/`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        ...getAuthHeader(),
-      },
-    });
-    if (!res.ok) throw await res.json();
-    return await res.json();
-  },
-
-  // ساخت دسته‌بندی جدید
-  createCategory: async (data: { name: string; position?: number }) => {
-    const res = await fetch(`${API_BASE_URL}/menu/categories/`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...getAuthHeader(),
-      },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) throw await res.json();
-    return await res.json();
-  },
-
-  // ویرایش دسته‌بندی (اضافه شد 🔴)
-  updateCategory: async (
-    id: number,
-    data: { name: string; position?: number },
-  ) => {
-    const res = await fetch(`${API_BASE_URL}/menu/categories/${id}/`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        ...getAuthHeader(),
-      },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) throw await res.json();
-    return await res.json();
-  },
-
-  // حذف دسته‌بندی (اضافه شد 🔴)
-  deleteCategory: async (id: number) => {
-    const res = await fetch(`${API_BASE_URL}/menu/categories/${id}/`, {
-      method: "DELETE",
-      headers: { ...getAuthHeader() },
-    });
-    if (!res.ok && res.status !== 204) throw await res.json();
-    return res;
-  },
-
-  // اضافه کردن محصول جدید
-  createProduct: async (data: any) => {
-    const isFormData = data instanceof FormData;
-    const res = await fetch(`${API_BASE_URL}/menu/products/`, {
-      method: "POST",
-      headers: {
-        ...(isFormData ? {} : { "Content-Type": "application/json" }),
-        ...getAuthHeader(),
-      },
-      body: isFormData ? data : JSON.stringify(data),
-    });
-    if (!res.ok) throw await res.json();
-    return await res.json();
-  },
-
-  // ویرایش محصول (اضافه شد 🔴)
-  updateProduct: async (id: number, data: any) => {
-    const isFormData = data instanceof FormData;
-    const res = await fetch(`${API_BASE_URL}/menu/products/${id}/`, {
-      method: "PATCH",
-      headers: {
-        ...(isFormData ? {} : { "Content-Type": "application/json" }),
-        ...getAuthHeader(),
-      },
-      body: isFormData ? data : JSON.stringify(data),
-    });
-    if (!res.ok) throw await res.json();
-    return await res.json();
-  },
-
-  // حذف یک محصول
-  deleteProduct: async (id: number) => {
-    const res = await fetch(`${API_BASE_URL}/menu/products/${id}/`, {
-      method: "DELETE",
-      headers: { ...getAuthHeader() },
-    });
-    if (!res.ok && res.status !== 204) throw await res.json();
-    return res;
-  },
+  getCategories: async () => (await apiClient.get("/Category")).data,
+  createCategory: async (data: any) =>
+    (await apiClient.post("/Category", data)).data,
+  getProducts: async () => (await apiClient.get("/Product")).data,
+  createProduct: async (data: any) =>
+    (await apiClient.post("/Product", data)).data,
 };
-// ==========================================
-// 8. سیستم پشتیبانی (Support)
-// ==========================================
-export const supportApi = {
-  getTickets: async () => {
-    const res = await fetch(`${API_BASE_URL}/support/tickets/`, {
-      method: "GET",
-      headers: { "Content-Type": "application/json", ...getAuthHeader() },
-    });
-    if (!res.ok) throw await res.json();
-    return await res.json();
-  },
 
-  createTicket: async (data: { subject: string; message: string }) => {
-    const res = await fetch(`${API_BASE_URL}/support/tickets/`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...getAuthHeader() },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) throw await res.json();
-    return await res.json();
-  },
-
-  getTicketDetails: async (id: number) => {
-    const res = await fetch(`${API_BASE_URL}/support/tickets/${id}/`, {
-      method: "GET",
-      headers: { "Content-Type": "application/json", ...getAuthHeader() },
-    });
-    if (!res.ok) throw await res.json();
-    return await res.json();
-  },
-
-  replyTicket: async (id: number, message: string) => {
-    const res = await fetch(`${API_BASE_URL}/support/tickets/${id}/`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...getAuthHeader() },
-      body: JSON.stringify({ message }),
-    });
-    if (!res.ok) throw await res.json();
-    return await res.json();
-  },
+export const ordersApi = {
+  getActiveOrders: async () => (await apiClient.get("/Order")).data,
+  getKitchenOrders: async () => (await apiClient.get("/Order/kitchen")).data,
+  updateOrderStatus: async (id: number, status: string) =>
+    (await apiClient.put(`/Order/${id}/status/${status}`)).data,
 };
+
+// جلوگیری از ارور (سفیدی صفحه) برای ایمپورت‌های خالی در آینده
+export const profileApi = {};
+export const dashboardApi = {};
+export const reportsApi = {};
+export const staffApi = {};
+export const kdsApi = {};
+export const subscriptionApi = {};
+export const publicApi = {};
+export const supportApi = {};

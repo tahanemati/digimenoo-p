@@ -1,93 +1,119 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Phone,
+  KeyRound,
   Loader2,
   ChevronLeft,
   ArrowRight,
   ArrowLeft,
-  KeyRound,
-  Smartphone,
-  QrCode,
-  ShoppingBag,
   Store,
+  Sparkles,
+  QrCode,
+  Smartphone,
+  RefreshCcw,
+  CheckCircle2,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { authApi } from "../service/api"; // 🔴 اتصال به API
+import { authApi } from "../service/api";
 
 // =======================
-// پنل گرافیکی پرمیوم (سمت چپ) - موکاپ منوی دیجیتال
+// انیمیشن‌های مینیمال اپل
+// =======================
+const appleAnimations = `
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes softFloat {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-6px); }
+  }
+  .apple-fade-1 { animation: fadeUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.05s both; }
+  .apple-fade-2 { animation: fadeUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both; }
+  .apple-fade-3 { animation: fadeUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.25s both; }
+  .apple-float-slow { animation: softFloat 6s ease-in-out infinite; }
+`;
+
+// =======================
+// پنل گرافیکی (سمت چپ)
 // =======================
 const GraphicPanel = () => (
-  <div className="hidden lg:flex w-1/2 bg-[#fafafa] relative items-center justify-center overflow-hidden border-l border-slate-200">
-    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_#dcfce7,_transparent_50%)] opacity-50"></div>
-    <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,_#ffedd5,_transparent_50%)] opacity-60"></div>
+  <div className="hidden lg:flex w-1/2 bg-[#fafafa] relative items-center justify-center overflow-hidden border-r border-slate-200/70 select-none">
+    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_#ffedd5,_transparent_55%)] opacity-70 pointer-events-none" />
+    <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,_#f1f5f9,_transparent_55%)] pointer-events-none" />
 
     <div
-      className="absolute inset-0 opacity-[0.2]"
+      className="absolute inset-0 opacity-[0.18]"
       style={{
         backgroundImage:
-          "linear-gradient(#e2e8f0 1px, transparent 1px), linear-gradient(90deg, #e2e8f0 1px, transparent 1px)",
+          "linear-gradient(#cbd5e1 1px, transparent 1px), linear-gradient(90deg, #cbd5e1 1px, transparent 1px)",
         backgroundSize: "32px 32px",
       }}
     />
 
-    <div className="relative z-10 w-full max-w-lg flex items-center justify-center animate-in fade-in slide-in-from-bottom-8 duration-1000">
-      <div className="relative w-[260px] h-[540px] bg-slate-50 rounded-[40px] border-[8px] border-slate-800 shadow-2xl overflow-hidden shrink-0 z-20">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-6 bg-slate-800 rounded-b-2xl z-30"></div>
+    <div className="relative z-10 w-full max-w-md flex flex-col gap-5 px-4">
+      <div className="mb-2 apple-fade-1">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-600 text-xs font-bold mb-3">
+          <Sparkles size={13} />
+          <span>هوشمندسازی در ۳۰ ثانیه</span>
+        </div>
+        <h2 className="text-3xl font-black text-slate-900 tracking-tight">
+          ثبت‌نام مجموعه
+        </h2>
+        <p className="text-slate-500 text-sm mt-1.5 font-medium leading-relaxed">
+          تنها با وارد کردن شماره موبایل، رستوران یا کافه خود را به نسل جدید
+          منوهای دیجیتال متصل کنید.
+        </p>
+      </div>
 
-        <div className="w-full h-full bg-white relative flex flex-col pt-10">
-          <div className="px-5 py-4 flex flex-col items-center border-b border-slate-100">
-            <div className="w-14 h-14 bg-orange-100 rounded-2xl flex items-center justify-center text-orange-500 mb-3">
-              <Store size={24} />
+      <div className="apple-fade-2">
+        <div className="bg-white/85 backdrop-blur-xl rounded-3xl p-6 shadow-[0_12px_40px_rgb(0,0,0,0.04)] border border-white w-full apple-float-slow">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-5 mb-5">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-orange-50 flex items-center justify-center text-orange-500 border border-orange-100/50">
+                <Store size={24} />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-800">
+                  ایجاد پروفایل مجموعه
+                </h3>
+                <p className="text-xs text-slate-400 font-medium mt-0.5">
+                  آماده اتصال به پنل
+                </p>
+              </div>
             </div>
-            <h3 className="font-black text-slate-800">کافه رستوران لوتوس</h3>
+            <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center">
+              <CheckCircle2 size={18} />
+            </div>
           </div>
 
-          <div className="p-4 space-y-3 flex-1 overflow-hidden">
-            <div className="bg-white border border-slate-100 p-2.5 rounded-2xl flex gap-3 shadow-sm">
-              <div className="w-16 h-16 bg-slate-100 rounded-xl shrink-0 flex items-center justify-center">
-                <ShoppingBag size={20} className="text-slate-300" />
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50/70 border border-slate-100">
+              <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-slate-400 shadow-sm border border-slate-100/50">
+                <Smartphone size={18} />
               </div>
-              <div className="flex-1 flex flex-col justify-center">
-                <div className="w-3/4 h-3 bg-slate-200 rounded mb-2"></div>
-                <div className="w-1/2 h-2 bg-slate-100 rounded mb-3"></div>
-                <div className="flex justify-between items-center">
-                  <div className="w-1/3 h-3 bg-orange-400 rounded"></div>
-                  <div className="w-6 h-6 bg-orange-50 rounded-md"></div>
+              <div>
+                <p className="text-xs font-bold text-slate-700">
+                  تایید شماره موبایل
+                </p>
+                <div className="w-24 h-1.5 bg-slate-200 rounded-full mt-2 overflow-hidden">
+                  <div className="w-full h-full bg-emerald-400"></div>
                 </div>
               </div>
             </div>
-            <div className="bg-white border border-slate-100 p-2.5 rounded-2xl flex gap-3 shadow-sm">
-              <div className="w-16 h-16 bg-slate-100 rounded-xl shrink-0"></div>
-              <div className="flex-1 flex flex-col justify-center">
-                <div className="w-2/3 h-3 bg-slate-200 rounded mb-2"></div>
-                <div className="w-1/2 h-2 bg-slate-100 rounded mb-3"></div>
-                <div className="w-1/3 h-3 bg-orange-400 rounded"></div>
+
+            <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50/70 border border-slate-100 opacity-60 grayscale">
+              <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-slate-400 shadow-sm border border-slate-100/50">
+                <QrCode size={18} />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-700">
+                  تولید لینک و QR Code اختصاصی
+                </p>
+                <p className="text-[10px] text-slate-400 mt-1">مرحله بعدی</p>
               </div>
             </div>
           </div>
-        </div>
-      </div>
-
-      <div className="absolute right-[-40px] top-1/4 bg-white p-5 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.1)] border border-slate-100 z-30 animate-in zoom-in fade-in delay-300 duration-700">
-        <div className="w-32 h-32 bg-slate-50 border border-slate-200 rounded-2xl p-2 mb-4 flex items-center justify-center">
-          <QrCode size={80} className="text-slate-800" strokeWidth={1} />
-        </div>
-        <div className="flex justify-between items-center">
-          <span className="text-xs font-bold text-slate-400">شماره میز</span>
-          <span className="text-xl font-black text-orange-500">۰۵</span>
-        </div>
-      </div>
-
-      <div className="absolute left-[-20px] bottom-1/4 bg-white/80 backdrop-blur-md px-5 py-4 rounded-2xl shadow-xl border border-slate-100 z-30 flex items-center gap-3">
-        <div className="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center">
-          <Smartphone size={20} />
-        </div>
-        <div>
-          <p className="text-sm font-black text-slate-800">منوی دیجیتال</p>
-          <p className="text-xs font-medium text-slate-500 mt-0.5">
-            بدون نیاز به نصب اپلیکیشن
-          </p>
         </div>
       </div>
     </div>
@@ -103,6 +129,16 @@ export const Register = () => {
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const [countdown, setCountdown] = useState(0);
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (countdown > 0) {
+      timer = setInterval(() => setCountdown((prev) => prev - 1), 1000);
+    }
+    return () => clearInterval(timer);
+  }, [countdown]);
 
   const toEnglishDigits = (str: string) => {
     const persianNumbers = ["۰", "۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹"];
@@ -131,6 +167,9 @@ export const Register = () => {
     if (val.length <= 6) setOtp(val);
   };
 
+  // =======================
+  // 🔴 مرحله ۱: ارسال موبایل به سرور
+  // =======================
   const handleSendOTP = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (mobile.length !== 11) return;
@@ -142,20 +181,39 @@ export const Register = () => {
       await authApi.sendOtp(mobile);
       setStep(2);
       setOtp("");
+      setCountdown(120);
     } catch (err: any) {
-      setError(
-        err.error ||
-          err.detail ||
-          err.message ||
-          "خطا در ارتباط با سرور. لطفاً مجدداً تلاش کنید.",
-      );
+      setError(err.message || "خطا در برقراری ارتباط با سرور.");
     } finally {
       setIsLoading(false);
     }
   };
 
   // =======================
-  // 🔴 اصلاح باگ لوپ (هدایت صحیح کاربر)
+  // 🔴 ارسال مجدد کد
+  // =======================
+  const handleResendOTP = async () => {
+    if (countdown > 0) return;
+
+    setIsLoading(true);
+    setError("");
+
+    try {
+      await authApi.resendOtp(mobile);
+      setCountdown(120);
+      setOtp("");
+    } catch (err: any) {
+      setError(err.message || "خطا در ارسال مجدد کد.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // =======================
+  // 🔴 مرحله ۲: تایید نهایی کد
+  // =======================
+  // =======================
+  // 🔴 مرحله ۲: تایید نهایی کد (در فایل Register.tsx)
   // =======================
   const handleVerifyOTP = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -167,26 +225,27 @@ export const Register = () => {
     try {
       const data = await authApi.verifyOtp(mobile, otp);
 
-      if (data.tokens) {
-        localStorage.setItem("access_token", data.tokens.access);
-        localStorage.setItem("refresh_token", data.tokens.refresh);
-        // ست کردن رول روی owner (برای مدیران که با OTP وارد میشن)
-        localStorage.setItem("role", "owner");
-      }
-
-      // 🔴 هدایت هوشمند: اگر کاربر جدیده بره صفحه تکمیل اطلاعات، وگرنه بره داشبورد
-      if (data.is_new_user) {
-        navigate("/complete-profile");
-      } else {
-        navigate("/dashboard");
-      }
-    } catch (err: any) {
-      setError(
-        err.error ||
-          err.detail ||
-          err.message ||
-          "کد وارد شده نامعتبر یا منقضی شده است.",
+      // ۱. ذخیره توکن‌ها
+      localStorage.setItem(
+        "access_token",
+        data.token || data.accessToken || data.access_token,
       );
+      if (data.refreshToken || data.refresh_token) {
+        localStorage.setItem(
+          "refresh_token",
+          data.refreshToken || data.refresh_token,
+        );
+      }
+      localStorage.setItem("role", data.role || "owner");
+
+      // ۲. ذخیره شماره موبایل برای صفحه تکمیل
+      localStorage.setItem("registered_mobile", mobile);
+
+      // ۳. 🔴 فیکس نهایی: کلا شرط بک‌اند رو برداشتیم.
+      // با استفاده از navigate (بدون رفرش شدن صفحه) مستقیم برو به پروفایل!
+      navigate("/complete-profile");
+    } catch (err: any) {
+      setError(err.message || "کد وارد شده نامعتبر یا منقضی شده است.");
     } finally {
       setIsLoading(false);
     }
@@ -197,22 +256,31 @@ export const Register = () => {
       className="h-screen w-full bg-white flex font-sans text-slate-800 overflow-hidden"
       dir="rtl"
     >
+      <style>{appleAnimations}</style>
+
+      {/* سمت راست: فرم ثبت‌نام مینیمال */}
       <div className="w-full lg:w-1/2 h-full flex flex-col relative bg-white">
         <div className="w-full px-8 py-6 flex justify-between items-center shrink-0">
-          <div className="lg:hidden text-xl font-black text-slate-900 tracking-tight">
-            Menu<span className="text-orange-500">Jet</span>
-          </div>
-          <div className="hidden lg:block"></div>
+          <Link
+            to="/"
+            className="text-xl font-black text-slate-900 tracking-tight"
+          >
+            دیجی<span className="text-orange-500">منو</span>
+          </Link>
 
           <div className="flex items-center gap-3 text-sm font-bold">
-            <span className="text-slate-500 hidden sm:block">
-              ورود با رمز عبور؟
+            <span className="text-slate-400 hidden sm:block font-medium">
+              قبلاً ثبت‌نام کرده‌اید؟
             </span>
             <Link
               to="/login"
-              className="text-orange-600 hover:text-orange-700 transition-colors flex items-center gap-1"
+              className="text-orange-600 hover:text-orange-700 transition-colors flex items-center gap-0.5 group"
             >
-              اینجا کلیک کنید <ChevronLeft size={16} />
+              ورود با رمز عبور
+              <ChevronLeft
+                size={16}
+                className="group-hover:-translate-x-0.5 transition-transform"
+              />
             </Link>
           </div>
         </div>
@@ -222,16 +290,18 @@ export const Register = () => {
           style={{ scrollbarWidth: "none" }}
         >
           <div className="w-full max-w-[360px] flex flex-col pb-10">
-            <div className="mb-8">
+            <div className="mb-8 apple-fade-1">
               <h1 className="text-3xl font-black text-slate-900 mb-2 tracking-tight">
-                ثبت‌نام / ورود سریع
+                ورود یا ثبت‌نام
               </h1>
               <p className="text-slate-500 text-sm font-medium">
-                برای ورود یا ساخت حساب، شماره خود را وارد کنید.
+                {step === 1
+                  ? "برای شروع، شماره موبایل خود را وارد کنید."
+                  : `کد ۶ رقمی ارسال شده به ${mobile} را وارد کنید.`}
               </p>
             </div>
 
-            <div className="flex gap-2 mb-8">
+            <div className="flex gap-2 mb-8 apple-fade-1">
               {[1, 2].map((s) => (
                 <div
                   key={s}
@@ -243,7 +313,7 @@ export const Register = () => {
             </div>
 
             {error && (
-              <div className="w-full mb-6 p-3.5 rounded-xl bg-rose-50 text-rose-600 text-sm font-bold flex items-center gap-3 animate-in fade-in zoom-in-95">
+              <div className="w-full mb-6 p-3.5 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600 text-sm font-bold flex items-center gap-3 apple-fade-1">
                 <div className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0"></div>
                 {error}
               </div>
@@ -253,14 +323,15 @@ export const Register = () => {
               className="w-full space-y-4"
               onSubmit={step === 1 ? handleSendOTP : handleVerifyOTP}
             >
+              {/* === مرحله ۱ === */}
               {step === 1 && (
-                <div className="animate-in fade-in slide-in-from-left-4 duration-500 space-y-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 mb-1.5 ml-1">
+                <div className="animate-in fade-in slide-in-from-left-4 duration-500 space-y-5">
+                  <div className="group">
+                    <label className="block text-xs font-bold text-slate-500 mb-2 mr-1 transition-colors group-focus-within:text-slate-800">
                       شماره موبایل
                     </label>
                     <div className="relative">
-                      <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-slate-400">
+                      <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-slate-400 transition-colors duration-300 group-focus-within:text-orange-500">
                         <Phone size={18} />
                       </div>
                       <input
@@ -268,17 +339,18 @@ export const Register = () => {
                         value={mobile}
                         onChange={handleMobileChange}
                         maxLength={11}
-                        placeholder="۰۹۱۲۳۴۵۶۷۸۹"
-                        className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl py-3.5 pr-11 pl-4 focus:outline-none focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10 transition-all dir-ltr text-left font-mono text-base placeholder:font-sans placeholder:text-right"
+                        placeholder="09125654321"
+                        className="w-full bg-slate-50/70 border border-slate-200/90 text-slate-900 rounded-2xl py-4 pr-11 pl-4 focus:outline-none focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10 transition-all duration-300 dir-ltr text-left font-mono text-base placeholder:font-sans placeholder:text-right placeholder:text-slate-400"
                       />
                     </div>
                   </div>
+
                   <button
                     type="submit"
                     disabled={mobile.length !== 11 || isLoading}
-                    className={`w-full mt-2 py-3.5 rounded-xl font-bold transition-all flex justify-center items-center gap-2 text-[15px] ${
+                    className={`group w-full py-4 rounded-2xl font-bold transition-all duration-300 flex justify-center items-center gap-2 text-[15px] ${
                       mobile.length === 11 && !isLoading
-                        ? "bg-slate-900 hover:bg-slate-800 text-white shadow-lg shadow-slate-900/20"
+                        ? "bg-slate-900 hover:bg-orange-500 text-white shadow-[0_10px_25px_rgba(15,23,42,0.15)] hover:shadow-[0_12px_30px_rgba(249,115,22,0.28)] hover:-translate-y-0.5 active:scale-[0.98]"
                         : "bg-slate-100 text-slate-400 cursor-not-allowed"
                     }`}
                   >
@@ -286,21 +358,50 @@ export const Register = () => {
                       <Loader2 size={20} className="animate-spin" />
                     ) : (
                       <>
-                        دریافت کد تایید <ArrowLeft size={18} />
+                        <span>دریافت کد تایید</span>
+                        <ArrowLeft
+                          size={18}
+                          className="transition-transform duration-300 group-hover:-translate-x-1"
+                        />
                       </>
                     )}
                   </button>
                 </div>
               )}
 
+              {/* === مرحله ۲ === */}
               {step === 2 && (
-                <div className="animate-in fade-in slide-in-from-left-4 duration-500 space-y-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 mb-1.5 ml-1">
-                      کد ۶ رقمی
-                    </label>
+                <div className="animate-in fade-in slide-in-from-left-4 duration-500 space-y-5">
+                  <div className="group">
+                    <div className="flex justify-between items-center mb-2 mr-1">
+                      <label className="block text-xs font-bold text-slate-500 transition-colors group-focus-within:text-slate-800">
+                        کد ۶ رقمی
+                      </label>
+                      <button
+                        type="button"
+                        onClick={handleResendOTP}
+                        disabled={countdown > 0 || isLoading}
+                        className={`text-xs font-bold flex items-center gap-1 transition-colors ${
+                          countdown > 0
+                            ? "text-slate-400 cursor-not-allowed"
+                            : "text-orange-500 hover:text-orange-600"
+                        }`}
+                      >
+                        {countdown > 0 ? (
+                          <span>
+                            ارسال مجدد ({Math.floor(countdown / 60)}:
+                            {(countdown % 60).toString().padStart(2, "0")})
+                          </span>
+                        ) : (
+                          <>
+                            <RefreshCcw size={12} /> ارسال مجدد کد
+                          </>
+                        )}
+                      </button>
+                    </div>
+
                     <div className="relative">
-                      <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-slate-400">
+                      <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-slate-400 transition-colors duration-300 group-focus-within:text-orange-500">
                         <KeyRound size={18} />
                       </div>
                       <input
@@ -309,34 +410,37 @@ export const Register = () => {
                         onChange={handleOtpChange}
                         maxLength={6}
                         placeholder="- - - - - -"
-                        className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl py-3.5 pr-11 pl-4 focus:outline-none focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10 transition-all text-center tracking-[1em] font-mono text-xl"
+                        className="w-full bg-slate-50/70 border border-slate-200/90 text-slate-900 rounded-2xl py-4 pr-11 pl-4 focus:outline-none focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10 transition-all duration-300 text-center tracking-[1em] font-mono text-xl"
                       />
                     </div>
                   </div>
+
                   <div className="flex gap-3 pt-2">
                     <button
                       type="button"
                       onClick={() => {
                         setStep(1);
                         setError("");
+                        setCountdown(0);
                       }}
-                      className="w-16 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 py-3.5 rounded-xl transition-all flex justify-center items-center shrink-0"
+                      className="w-14 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-2xl transition-all flex justify-center items-center shrink-0 hover:border-slate-300"
                     >
                       <ArrowRight size={18} />
                     </button>
+
                     <button
                       type="submit"
                       disabled={otp.length !== 6 || isLoading}
-                      className={`flex-1 py-3.5 rounded-xl font-bold transition-all flex justify-center items-center gap-2 text-[15px] shadow-lg ${
+                      className={`flex-1 py-4 rounded-2xl font-bold transition-all duration-300 flex justify-center items-center gap-2 text-[15px] ${
                         otp.length === 6 && !isLoading
-                          ? "bg-slate-900 hover:bg-slate-800 text-white shadow-slate-900/20"
-                          : "bg-slate-100 text-slate-400 cursor-not-allowed shadow-transparent"
+                          ? "bg-slate-900 hover:bg-emerald-500 text-white shadow-[0_10px_25px_rgba(15,23,42,0.15)] hover:shadow-[0_12px_30px_rgba(16,185,129,0.28)] hover:-translate-y-0.5 active:scale-[0.98]"
+                          : "bg-slate-100 text-slate-400 cursor-not-allowed"
                       }`}
                     >
                       {isLoading ? (
                         <Loader2 size={20} className="animate-spin" />
                       ) : (
-                        "ورود به داشبورد"
+                        "تایید و ورود"
                       )}
                     </button>
                   </div>

@@ -5,14 +5,32 @@ import {
   User,
   ShieldCheck,
   CheckCircle2,
-  Utensils,
   ArrowRight,
+  Sparkles,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { authApi } from "../service/api"; // 🔴 اتصال به API
+import { Link, useNavigate } from "react-router-dom";
+import { authApi } from "../service/api";
 
 // =======================
-// پنل گرافیکی پرمیوم (سمت چپ) - موکاپ پروفایل کاربری امن
+// انیمیشن‌های مینیمال اپل
+// =======================
+const appleAnimations = `
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes softFloat {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-6px); }
+  }
+  .apple-fade-1 { animation: fadeUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.05s both; }
+  .apple-fade-2 { animation: fadeUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both; }
+  .apple-fade-3 { animation: fadeUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.25s both; }
+  .apple-float-slow { animation: softFloat 6s ease-in-out infinite; }
+`;
+
+// =======================
+// پنل گرافیکی مینیمال (سمت چپ)
 // =======================
 const GraphicPanel = ({
   firstName,
@@ -21,66 +39,77 @@ const GraphicPanel = ({
   firstName: string;
   lastName: string;
 }) => (
-  <div className="hidden lg:flex w-1/2 bg-[#fafafa] relative items-center justify-center overflow-hidden border-l border-slate-200">
-    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_#ffedd5,_transparent_50%)] opacity-70"></div>
-    <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,_#dcfce7,_transparent_50%)] opacity-50"></div>
+  <div className="hidden lg:flex w-1/2 bg-[#fafafa] relative items-center justify-center overflow-hidden border-r border-slate-200/70 select-none">
+    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_#ffedd5,_transparent_55%)] opacity-70 pointer-events-none" />
+    <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,_#f1f5f9,_transparent_55%)] pointer-events-none" />
 
     <div
-      className="absolute inset-0 opacity-[0.3]"
+      className="absolute inset-0 opacity-[0.18]"
       style={{
         backgroundImage:
-          "linear-gradient(#e2e8f0 1px, transparent 1px), linear-gradient(90deg, #e2e8f0 1px, transparent 1px)",
+          "linear-gradient(#cbd5e1 1px, transparent 1px), linear-gradient(90deg, #cbd5e1 1px, transparent 1px)",
         backgroundSize: "32px 32px",
       }}
     />
 
-    <div className="relative z-10 w-full max-w-md flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-8 duration-1000 items-center">
-      <div className="bg-white/70 backdrop-blur-2xl rounded-[40px] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.05)] border border-white w-full max-w-[340px] relative overflow-hidden group">
-        <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-br from-orange-400 to-orange-500 opacity-90"></div>
-        <div className="absolute top-4 right-4 bg-white/20 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-1.5 border border-white/30 text-white text-[10px] font-bold">
-          <ShieldCheck size={14} /> حساب امن
+    <div className="relative z-10 w-full max-w-md flex flex-col gap-5 px-4">
+      <div className="mb-2 apple-fade-1 text-center">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-xs font-bold mb-3">
+          <ShieldCheck size={13} />
+          <span>امنیت حساب کاربری</span>
         </div>
+        <h2 className="text-3xl font-black text-slate-900 tracking-tight">
+          پروفایل مدیریت
+        </h2>
+        <p className="text-slate-500 text-sm mt-1.5 font-medium leading-relaxed">
+          دسترسی یکپارچه به تمامی ابزارهای مدیریتی دیجی‌منو
+        </p>
+      </div>
 
-        <div className="relative z-10 mt-6 flex justify-center mb-6">
-          <div className="w-24 h-24 bg-white rounded-full p-1.5 shadow-xl shadow-orange-500/20 group-hover:scale-105 transition-transform duration-500">
-            <div className="w-full h-full bg-slate-50 rounded-full border border-slate-100 flex items-center justify-center text-orange-500 text-3xl font-black">
-              {firstName ? (
-                firstName.charAt(0)
-              ) : (
-                <User size={40} className="text-slate-300" strokeWidth={1.5} />
-              )}
+      <div className="apple-fade-2">
+        <div className="bg-white/85 backdrop-blur-xl rounded-3xl p-6 shadow-[0_12px_40px_rgb(0,0,0,0.04)] border border-white w-full max-w-[340px] mx-auto apple-float-slow">
+          <div className="flex flex-col items-center justify-center text-center">
+            <div className="relative mb-5">
+              <div className="w-20 h-20 bg-gradient-to-br from-orange-400 to-orange-500 rounded-3xl flex items-center justify-center text-white text-3xl font-black shadow-lg shadow-orange-500/25 border-4 border-white">
+                {firstName ? (
+                  firstName.charAt(0)
+                ) : (
+                  <User size={32} strokeWidth={2} />
+                )}
+              </div>
+              <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-emerald-500 rounded-full border-2 border-white flex items-center justify-center text-white">
+                <CheckCircle2 size={12} />
+              </div>
             </div>
-          </div>
-        </div>
 
-        <div className="text-center relative z-10 mb-8">
-          <h3 className="text-2xl font-black text-slate-800 tracking-tight mb-1">
-            {firstName || lastName
-              ? `${firstName} ${lastName}`
-              : "مدیر رستوران"}
-          </h3>
-          <p className="text-slate-400 text-sm font-medium flex items-center justify-center gap-1.5">
-            مالک حساب MenuJet{" "}
-            <CheckCircle2 size={14} className="text-emerald-500" />
-          </p>
-        </div>
-
-        <div className="space-y-3 relative z-10">
-          <div className="flex items-center gap-3 bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
-            <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center shrink-0">
-              <CheckCircle2 size={16} />
-            </div>
-            <p className="text-xs font-bold text-slate-600">
-              تایید شماره موبایل
+            <h3 className="text-lg font-black text-slate-800 tracking-tight mb-1">
+              {firstName || lastName
+                ? `${firstName} ${lastName}`
+                : "مدیر مجموعه"}
+            </h3>
+            <p className="text-xs text-slate-400 font-bold bg-slate-100 px-2.5 py-1 rounded-lg">
+              مالک حساب (Owner)
             </p>
           </div>
-          <div className="flex items-center gap-3 bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
-            <div className="w-8 h-8 rounded-full bg-orange-50 text-orange-500 flex items-center justify-center shrink-0">
-              <Lock size={16} />
+
+          <div className="mt-6 pt-5 border-t border-slate-100 space-y-3">
+            <div className="flex items-center gap-3 p-3 rounded-2xl bg-emerald-50/50 border border-emerald-100/50">
+              <div className="w-8 h-8 rounded-xl bg-white flex items-center justify-center text-emerald-500 shadow-sm border border-emerald-100">
+                <CheckCircle2 size={16} />
+              </div>
+              <p className="text-xs font-bold text-slate-700">
+                موبایل تایید شد
+              </p>
             </div>
-            <p className="text-xs font-bold text-slate-600">
-              ایجاد رمز عبور امن
-            </p>
+
+            <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50/70 border border-slate-100">
+              <div className="w-8 h-8 rounded-xl bg-white flex items-center justify-center text-orange-500 shadow-sm border border-slate-100/50">
+                <Lock size={16} />
+              </div>
+              <p className="text-xs font-bold text-slate-700">
+                تخصیص رمز عبور امن
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -100,7 +129,7 @@ export const CompleteProfile = () => {
   const [error, setError] = useState("");
 
   // =======================
-  // 🔴 اتصال به API تکمیل پروفایل
+  // 🔴 ارسال به بک‌اند (نسخه حرفه‌ای با Auto-Login)
   // =======================
   const handleCompleteProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -113,8 +142,14 @@ export const CompleteProfile = () => {
       setError("رمز عبور و تکرار آن یکسان نیستند.");
       return;
     }
-    if (password.length < 4) {
-      setError("رمز عبور باید حداقل ۴ کاراکتر باشد.");
+    if (password.length < 6) {
+      setError("رمز عبور باید حداقل ۶ کاراکتر باشد.");
+      return;
+    }
+
+    const realMobile = localStorage.getItem("registered_mobile");
+    if (!realMobile) {
+      setError("شماره موبایل یافت نشد! لطفاً مجدداً وارد شوید.");
       return;
     }
 
@@ -122,42 +157,100 @@ export const CompleteProfile = () => {
     setError("");
 
     try {
-      // ارسال اطلاعات به بک‌اند جنگو
-      await authApi.completeRegistration({
-        first_name: firstName,
-        last_name: lastName,
+      // ۱. ثبت اطلاعات کاربر در دیتابیس
+      const completeRes = await authApi.completeRegistration({
+        mobile: realMobile,
+        name: firstName,
+        lastName: lastName,
         password: password,
+        confirmPassword: confirmPassword,
       });
 
-      // بعد از ثبت موفقیت‌آمیز، کاربر را به داشبورد می‌فرستیم
-      // داشبورد به صورت اتوماتیک تشخیص می‌دهد که پروفایل تکمیل شده و قفل مرحله ۲ را باز می‌کند.
-      navigate("/dashboard");
+      const completeData = completeRes.data || completeRes;
+      let token =
+        completeData?.token ||
+        completeData?.Token ||
+        completeData?.accessToken ||
+        completeData?.access_token;
+      let refresh =
+        completeData?.refreshToken ||
+        completeData?.refresh_token ||
+        completeData?.RefreshToken;
+
+      // 🔴 ۲. عملیات لاگین خودکار (Auto-Login)
+      // اگر دات‌نت بعد از تکمیل پروفایل توکنی نداد، ما خودمون با پسوردی که الان ساختیم لاگین می‌کنیم!
+      if (!token) {
+        console.log("در حال لاگین خودکار برای دریافت توکن اصلی...");
+        const loginRes = await authApi.login({
+          mobile: realMobile,
+          password: password, // همون پسوردی که کاربر تو فیلد بالا وارد کرده
+        });
+
+        const loginData = loginRes.data || loginRes;
+        token =
+          loginData?.token ||
+          loginData?.Token ||
+          loginData?.accessToken ||
+          loginData?.access_token;
+        refresh =
+          loginData?.refreshToken ||
+          loginData?.refresh_token ||
+          loginData?.RefreshToken;
+
+        // ذخیره نقش کاربر (از لاگین)
+        localStorage.setItem(
+          "role",
+          loginData?.role || loginData?.Role || "owner",
+        );
+      }
+
+      // ۳. ذخیره توکن دائمی
+      if (token) {
+        localStorage.setItem("access_token", token);
+      } else {
+        throw new Error("خطا در دریافت توکن. لطفاً از صفحه ورود لاگین کنید.");
+      }
+
+      if (refresh) {
+        localStorage.setItem("refresh_token", refresh);
+      }
+
+      localStorage.setItem("user_name", `${firstName} ${lastName}`);
+
+      // پاک‌سازی
+      localStorage.removeItem("registered_mobile");
+
+      // ۴. ورود مقتدرانه به داشبورد
+      window.location.href = "/dashboard";
     } catch (err: any) {
       setError(
-        err.error ||
+        err.message ||
           err.detail ||
-          err.message ||
-          "خطا در ثبت اطلاعات. لطفاً مجدداً تلاش کنید.",
+          err.error ||
+          "خطا در برقراری ارتباط با سرور.",
       );
     } finally {
       setIsLoading(false);
     }
   };
-
   return (
     <div
       className="h-screen w-full bg-white flex font-sans text-slate-800 overflow-hidden"
       dir="rtl"
     >
-      <div className="w-full lg:w-1/2 h-full flex flex-col relative bg-white shadow-[10px_0_40px_rgba(0,0,0,0.03)] lg:shadow-none z-20">
+      <style>{appleAnimations}</style>
+
+      {/* سمت راست: فرم تکمیل پروفایل مینیمال */}
+      <div className="w-full lg:w-1/2 h-full flex flex-col relative bg-white">
         <div className="w-full px-8 py-6 flex justify-between items-center shrink-0">
-          <div className="flex items-center gap-2">
-            <div className="w-9 h-9 bg-orange-500 rounded-xl flex items-center justify-center shadow-lg shadow-orange-500/20">
-              <Utensils className="text-white" size={18} />
-            </div>
-            <span className="text-lg font-black text-slate-900 tracking-tight">
-              Menu<span className="text-orange-500">Jet</span>
-            </span>
+          <Link
+            to="/"
+            className="text-xl font-black text-slate-900 tracking-tight"
+          >
+            دیجی<span className="text-orange-500">منو</span>
+          </Link>
+          <div className="px-3 py-1 bg-slate-100 rounded-full text-xs font-bold text-slate-500">
+            مرحله نهایی
           </div>
         </div>
 
@@ -166,31 +259,35 @@ export const CompleteProfile = () => {
           style={{ scrollbarWidth: "none" }}
         >
           <div className="w-full max-w-[380px] flex flex-col pb-10">
-            <div className="mb-8">
-              <h1 className="text-3xl font-black text-slate-900 mb-3 tracking-tight">
+            <div className="mb-8 apple-fade-1">
+              <h1 className="text-3xl font-black text-slate-900 mb-2 tracking-tight">
                 تکمیل اطلاعات حساب
               </h1>
               <p className="text-slate-500 text-sm font-medium leading-relaxed">
-                ثبت‌نام شما تقریباً تمام شده است! برای امنیت بیشتر و شناسایی در
-                سیستم، اطلاعات زیر را تکمیل کنید.
+                ثبت‌نام شما تقریباً تمام شده است! برای امنیت بیشتر، مشخصات خود
+                را وارد کنید.
               </p>
             </div>
 
             {error && (
-              <div className="w-full mb-6 p-3.5 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600 text-sm font-bold flex items-center gap-3 animate-in fade-in zoom-in-95">
-                <div className="w-2 h-2 rounded-full bg-rose-500 animate-pulse shrink-0"></div>
+              <div className="w-full mb-6 p-3.5 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600 text-sm font-bold flex items-center gap-3 apple-fade-1">
+                <div className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0"></div>
                 {error}
               </div>
             )}
 
-            <form className="w-full space-y-4" onSubmit={handleCompleteProfile}>
+            <form
+              className="w-full space-y-4 apple-fade-2"
+              onSubmit={handleCompleteProfile}
+            >
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-1.5 ml-1">
+                {/* نام */}
+                <div className="group">
+                  <label className="block text-xs font-bold text-slate-500 mb-2 mr-1 transition-colors group-focus-within:text-slate-800">
                     نام
                   </label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-slate-400">
+                    <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-slate-400 transition-colors duration-300 group-focus-within:text-orange-500">
                       <User size={18} />
                     </div>
                     <input
@@ -198,12 +295,14 @@ export const CompleteProfile = () => {
                       value={firstName}
                       onChange={(e) => setFirstName(e.target.value)}
                       placeholder="علی"
-                      className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-2xl py-3.5 pr-10 pl-3 focus:outline-none focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition-all text-sm shadow-sm"
+                      className="w-full bg-slate-50/70 border border-slate-200/90 text-slate-900 rounded-2xl py-4 pr-11 pl-3 focus:outline-none focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10 transition-all duration-300 placeholder:text-slate-400"
                     />
                   </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-1.5 ml-1">
+
+                {/* نام خانوادگی */}
+                <div className="group">
+                  <label className="block text-xs font-bold text-slate-500 mb-2 mr-1 transition-colors group-focus-within:text-slate-800">
                     نام خانوادگی
                   </label>
                   <input
@@ -211,17 +310,18 @@ export const CompleteProfile = () => {
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
                     placeholder="رضایی"
-                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-2xl py-3.5 px-4 focus:outline-none focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition-all text-sm shadow-sm"
+                    className="w-full bg-slate-50/70 border border-slate-200/90 text-slate-900 rounded-2xl py-4 px-4 focus:outline-none focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10 transition-all duration-300 placeholder:text-slate-400"
                   />
                 </div>
               </div>
 
-              <div className="pt-2">
-                <label className="block text-xs font-bold text-slate-500 mb-1.5 ml-1">
+              {/* رمز عبور */}
+              <div className="group pt-2">
+                <label className="block text-xs font-bold text-slate-500 mb-2 mr-1 transition-colors group-focus-within:text-slate-800">
                   رمز عبور امن
                 </label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-slate-400">
+                  <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-slate-400 transition-colors duration-300 group-focus-within:text-orange-500">
                     <Lock size={18} />
                   </div>
                   <input
@@ -230,17 +330,18 @@ export const CompleteProfile = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-2xl py-3.5 pr-11 pl-4 focus:outline-none focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition-all text-left font-mono text-base placeholder:font-sans placeholder:text-right shadow-sm"
+                    className="w-full bg-slate-50/70 border border-slate-200/90 text-slate-900 rounded-2xl py-4 pr-11 pl-4 focus:outline-none focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10 transition-all duration-300 text-left font-mono text-base placeholder:font-sans placeholder:text-right placeholder:text-slate-400"
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1.5 ml-1">
+              {/* تکرار رمز عبور */}
+              <div className="group">
+                <label className="block text-xs font-bold text-slate-500 mb-2 mr-1 transition-colors group-focus-within:text-slate-800">
                   تکرار رمز عبور
                 </label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-slate-400">
+                  <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-slate-400 transition-colors duration-300 group-focus-within:text-orange-500">
                     <Lock size={18} />
                   </div>
                   <input
@@ -249,44 +350,51 @@ export const CompleteProfile = () => {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-2xl py-3.5 pr-11 pl-4 focus:outline-none focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition-all text-left font-mono text-base placeholder:font-sans placeholder:text-right shadow-sm"
+                    className="w-full bg-slate-50/70 border border-slate-200/90 text-slate-900 rounded-2xl py-4 pr-11 pl-4 focus:outline-none focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10 transition-all duration-300 text-left font-mono text-base placeholder:font-sans placeholder:text-right placeholder:text-slate-400"
                   />
                 </div>
               </div>
 
-              <button
-                type="submit"
-                disabled={
-                  !firstName ||
-                  !lastName ||
-                  !password ||
-                  !confirmPassword ||
-                  isLoading
-                }
-                className={`w-full mt-6 py-4 rounded-2xl font-black transition-all flex justify-center items-center gap-2 text-[15px] ${
-                  firstName &&
-                  lastName &&
-                  password &&
-                  confirmPassword &&
-                  !isLoading
-                    ? "bg-orange-500 hover:bg-orange-600 text-white shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 hover:-translate-y-0.5"
-                    : "bg-slate-200 text-slate-400 cursor-not-allowed"
-                }`}
-              >
-                {isLoading ? (
-                  <Loader2 size={20} className="animate-spin" />
-                ) : (
-                  <>
-                    تایید و ورود به پلتفرم{" "}
-                    <ArrowRight size={18} className="rotate-180" />
-                  </>
-                )}
-              </button>
+              {/* دکمه ارسال */}
+              <div className="pt-4">
+                <button
+                  type="submit"
+                  disabled={
+                    !firstName ||
+                    !lastName ||
+                    !password ||
+                    !confirmPassword ||
+                    isLoading
+                  }
+                  className={`group w-full py-4 rounded-2xl font-bold transition-all duration-300 flex justify-center items-center gap-2 text-[15px] ${
+                    firstName &&
+                    lastName &&
+                    password &&
+                    confirmPassword &&
+                    !isLoading
+                      ? "bg-slate-900 hover:bg-emerald-500 text-white shadow-[0_10px_25px_rgba(15,23,42,0.15)] hover:shadow-[0_12px_30px_rgba(16,185,129,0.28)] hover:-translate-y-0.5 active:scale-[0.98]"
+                      : "bg-slate-100 text-slate-400 cursor-not-allowed"
+                  }`}
+                >
+                  {isLoading ? (
+                    <Loader2 size={20} className="animate-spin" />
+                  ) : (
+                    <>
+                      <span>تایید و ورود به پلتفرم</span>
+                      <ArrowRight
+                        size={18}
+                        className="rotate-180 transition-transform duration-300 group-hover:-translate-x-1"
+                      />
+                    </>
+                  )}
+                </button>
+              </div>
             </form>
           </div>
         </div>
       </div>
 
+      {/* سمت چپ: پنل گرافیکی اختصاصی */}
       <GraphicPanel firstName={firstName} lastName={lastName} />
     </div>
   );
