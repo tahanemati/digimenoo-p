@@ -6,16 +6,16 @@ import { Dashboard } from "./pages/Dashboard";
 import { SetupVenue } from "./pages/SetupVenue";
 import { Venues } from "./pages/Venues";
 import { Support } from "./pages/Support";
-// import { Wallet } from "./pages/Wallet";
+import { Wallet } from "./pages/Wallet";
 import { DashboardLayout } from "./components/DashboardLayout";
 import { VenueSettings } from "./pages/VenueSettings";
 import { Subscription } from "./pages/Subscription";
-import { QRBuilder } from "./pages/QRBuilder";
+import { QrCodes } from "./pages/QrCodes";
 import { KitchenPanel } from "./pages/KitchenPanel";
 import { LiveMenu } from "./pages/LiveMenu";
 import { ForgotPassword } from "./pages/ForgotPassword";
 import { CompleteProfile } from "./pages/CompleteProfile";
-// import { TeamManagement } from "./pages/TeamManagement";
+import { TeamManagement } from "./pages/TeamManagement";
 import { OneDemo } from "./pages/demos/OneDemo";
 import { TwoDemo } from "./pages/demos/TwoDemo";
 import { ThreeDemo } from "./pages/demos/ThreeDemo";
@@ -29,6 +29,10 @@ import { BentoDemo } from "./pages/demos/BentoDemo";
 import { ProductManagement } from "./pages/ProductManagement";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { WaiterPanel } from "./pages/WaiterPanel";
+import { CustomerMenu } from "./pages/CustomerMenu";
+import FinancialReports from "./pages/FinancialReports";
+import TableReservations from "./pages/TableReservations";
+
 
 function App() {
   return (
@@ -50,6 +54,7 @@ function App() {
         <Route path="/eightdemo" element={<VintageDemo />} />
         <Route path="/ninedemo" element={<OrbitalDemo />} />
         <Route path="/tendemo" element={<BentoDemo />} />
+        <Route path="/:slug" element={<CustomerMenu />} />
 
         <Route element={<ProtectedRoute />}>
           <Route element={<DashboardLayout />}>
@@ -59,30 +64,23 @@ function App() {
 
             {/* 🔴 روت کیف پول غیرفعال و به داشبورد ریدایرکت شد */}
             {/* <Route path="/wallet" element={<Wallet />} /> */}
-            <Route
-              path="/wallet"
-              element={<Navigate to="/dashboard" replace />}
-            />
+            <Route path="/wallet" element={<Wallet />} />
 
             <Route path="/venue-settings" element={<VenueSettings />} />
             <Route path="/subscription" element={<Subscription />} />
-            <Route path="/qr-builder" element={<QRBuilder />} />
+            <Route path="/qrcodes" element={<QrCodes />} />
             <Route path="/kitchen" element={<KitchenPanel />} />
 
             {/* 🔴 روت مدیریت تیم غیرفعال و به داشبورد ریدایرکت شد */}
-            {/* <Route path="/team" element={<TeamManagement />} /> */}
-            <Route
-              path="/team"
-              element={<Navigate to="/dashboard" replace />}
-            />
+            <Route path="/team" element={<TeamManagement />} />
+            <Route path="/financial-reports" element={<FinancialReports />} />
+            <Route path="/reservations" element={<TableReservations />} />
 
             <Route path="/products" element={<ProductManagement />} />
           </Route>
           <Route path="/setup-venue" element={<SetupVenue />} />
           <Route path="/waiter" element={<WaiterPanel />} />
         </Route>
-
-        <Route path="/:slug" element={<LiveMenu />} />
       </Routes>
     </BrowserRouter>
   );

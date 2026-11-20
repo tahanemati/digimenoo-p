@@ -189,7 +189,7 @@ export const Login = () => {
   };
 
   // =======================
-  // 🔴 اتصال ضدگلوله به API بک‌اند .NET
+  // اتصال به API لاگین جنگو (/api/auth/login/)
   // =======================
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -200,48 +200,49 @@ export const Login = () => {
 
     try {
       const response = await authApi.login({
-        mobile: mobile,
-        password: password,
+        mobile: mobile.trim(),
+        password,
       });
 
-      // 🔴 استخراج امن اطلاعات (پشتیبانی از فرمت‌های مختلف C#)
-      const resultData = response.data || response;
-      const token =
-        resultData.token ||
-        resultData.Token ||
-        resultData.accessToken ||
-        resultData.Access_token;
+      const payload = response?.data || response;
 
-      if (!token) {
-        setError("لاگین انجام شد اما توکن امنیتی یافت نشد.");
-        setIsLoading(false);
+      const accessToken =
+        payload?.token ||
+        payload?.access ||
+        payload?.accessToken ||
+        payload?.access_token;
+
+      if (!accessToken) {
+        setError("ورود انجام شد اما توکن امنیتی از سرور دریافت نشد.");
         return;
       }
 
-      // ذخیره توکن‌ها
-      localStorage.setItem("access_token", token);
-      if (resultData.refreshToken || resultData.Refresh_token) {
-        localStorage.setItem(
-          "refresh_token",
-          resultData.refreshToken || resultData.Refresh_token,
-        );
+      // پاک‌سازی توکن‌های قبلی و ذخیره توکن‌های جدید جنگو
+      localStorage.removeItem("token");
+      localStorage.setItem("access_token", accessToken);
+
+      const refreshToken =
+        payload?.refresh || payload?.refreshToken || payload?.refresh_token;
+      if (refreshToken) {
+        localStorage.setItem("refresh_token", refreshToken);
       }
 
-      // ذخیره نام و نقش
-      localStorage.setItem(
-        "role",
-        resultData.role || resultData.Role || "owner",
-      );
-      localStorage.setItem(
-        "user_name",
-        resultData.fullName || resultData.UserName || "",
-      );
+      const userRole = String(
+        payload?.role || payload?.user?.role || "owner",
+      ).toLowerCase();
+      localStorage.setItem("role", userRole);
 
-      // 🔴 حیاتی: ذخیره شماره موبایل تا در صورتی که کاربر پروفایل نداشت، به صفحه Complete-Profile برود و آنجا ارور نگیرد.
-      localStorage.setItem("registered_mobile", mobile);
+      const userName =
+        payload?.user?.name ||
+        payload?.fullName ||
+        payload?.name ||
+        "همکار عزیز";
+      localStorage.setItem("user_name", userName);
 
-      // ورود موفقیت‌آمیز و انتقال به داشبورد
-      window.location.href = "/dashboard";
+      // ذخیره موبایل برای حالت تکمیل پروفایل
+      localStorage.setItem("registered_mobile", mobile.trim());
+
+      navigate("/dashboard", { replace: true });
     } catch (err: any) {
       setError(
         err.message ||
@@ -398,3 +399,5 @@ export const Login = () => {
     </div>
   );
 };
+
+export default Login;

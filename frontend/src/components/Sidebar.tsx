@@ -3,115 +3,301 @@ import {
   LayoutDashboard,
   Store,
   CreditCard,
-  Wallet,
   Headset,
   Users,
   LogOut,
-  X,
   Utensils,
-  ChevronLeft,
-  Sparkles,
+  Wallet,
+  QrCode,
+  MoreHorizontal,
+  Lock,
+  ChefHat,
+  BellRing,
+  BarChart3,
+  CalendarCheck,
 } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { authApi } from "../service/api";
 
+import { driver } from "driver.js";
+import "driver.js/dist/driver.css";
+
 interface SidebarProps {
-  isSidebarOpen: boolean;
-  setIsSidebarOpen: (isOpen: boolean) => void;
+  isSidebarOpen?: boolean;
+  setIsSidebarOpen?: (isOpen: boolean) => void;
 }
 
-export const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }: SidebarProps) => {
-  const location = useLocation();
+type SidebarSegment = "operations" | "management";
 
-  // 🔴 استفاده از State برای داینامیک شدن اسم و نقش
-  const [role, setRole] = useState(localStorage.getItem("role") || "owner");
+export const Sidebar = ({}: SidebarProps) => {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const initialRole = (localStorage.getItem("role") || "owner").toLowerCase();
+  const [role, setRole] = useState(initialRole);
   const [userName, setUserName] = useState(
     localStorage.getItem("user_name") &&
       localStorage.getItem("user_name") !== "null"
       ? localStorage.getItem("user_name")!
       : "همکار عزیز",
   );
+  const [isMobileMoreOpen, setIsMobileMoreOpen] = useState(false);
+  const [activeSegment, setActiveSegment] =
+    useState<SidebarSegment>("operations");
 
-  // 🔴 هوشمندسازی سایدبار: گرفتن اسم به صورت مستقیم از بک‌اند بدون نیاز به تغییر فایل‌های لاگین
-  useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        const data = await authApi.getDashboardStatus();
-        if (data.name) {
-          setUserName(data.name);
-          localStorage.setItem("user_name", data.name);
-        }
-        if (data.role) {
-          setRole(data.role);
-          localStorage.setItem("role", data.role);
-        }
-      } catch (error) {
-        console.error("خطا در دریافت اطلاعات کاربر برای سایدبار:", error);
-      }
-    };
+  const [hasVenue, setHasVenue] = useState(initialRole !== "owner");
+  const [mobileWarning, setMobileWarning] = useState<string | null>(null);
 
-    fetchUserData();
-  }, []);
+  const normalizedRole = role.toLowerCase();
 
-  // حرف اول اسم برای آواتار
-  const userInitial = userName.charAt(0);
-
-  const menuItems = [
+  const menuItems: {
+    id: string;
+    path: string;
+    name: string;
+    icon: any;
+    segment: SidebarSegment;
+    allowedRoles: string[];
+  }[] = [
+    // تب اول: سالن و سفارشات روزانه
     {
       id: "dashboard",
       path: "/dashboard",
       name: "داشبورد",
       icon: LayoutDashboard,
+      segment: "operations",
       allowedRoles: ["owner", "cashier", "kitchen", "waiter"],
+    },
+    {
+      id: "kitchenPanel",
+      path: "/kitchen",
+      name:
+        normalizedRole === "waiter"
+          ? "درخواست‌های میزها"
+          : normalizedRole === "cashier"
+            ? "صندوق و سفارشات"
+            : "دریافت سفارشات",
+      icon: normalizedRole === "waiter" ? BellRing : ChefHat,
+      segment: "operations",
+      allowedRoles: ["owner", "cashier", "kitchen", "waiter"],
+    },
+    {
+      id: "reservations",
+      path: "/reservations",
+      name: "وضعیت رزرو میزها",
+      icon: CalendarCheck,
+      segment: "operations",
+      allowedRoles: ["owner"],
     },
     {
       id: "ProductManagement",
       path: "/products",
-      name: "مدیریت محصولات",
-      icon: Store,
+      name: "محصولات و منو",
+      icon: Utensils,
+      segment: "operations",
       allowedRoles: ["owner"],
     },
     {
-      id: "TeamManagement",
-      path: "/team",
-      name: "مدیریت تیم",
-      icon: Users,
-      allowedRoles: ["owner"],
-      comingSoon: true,
-    },
-    {
-      id: "venues",
-      path: "/venues",
-      name: "رستوران‌ها",
-      icon: Store,
+      id: "qrcodes",
+      path: "/qrcodes",
+      name: "بارکد میزها",
+      icon: QrCode,
+      segment: "operations",
       allowedRoles: ["owner"],
     },
+
+    // تب دوم: مالی و مدیریت
     {
-      id: "subscription",
-      path: "/subscription",
-      name: "اشتراک و تمدید",
-      icon: CreditCard,
-      allowedRoles: ["owner"],
+      id: "financialReports",
+      path: "/financial-reports",
+      name: "گزارش مالی",
+      icon: BarChart3,
+      segment: "management",
+      allowedRoles: ["owner", "cashier"],
     },
     {
       id: "wallet",
       path: "/wallet",
       name: "کیف پول",
       icon: Wallet,
+      segment: "management",
       allowedRoles: ["owner"],
-      comingSoon: true,
+    },
+    {
+      id: "TeamManagement",
+      path: "/team",
+      name: "تیم من",
+      icon: Users,
+      segment: "management",
+      allowedRoles: ["owner"],
+    },
+    {
+      id: "venues",
+      path: "/venues",
+      name: "رستوران‌ها",
+      icon: Store,
+      segment: "management",
+      allowedRoles: ["owner"],
+    },
+    {
+      id: "subscription",
+      path: "/subscription",
+      name: "اشتراک",
+      icon: CreditCard,
+      segment: "management",
+      allowedRoles: ["owner"],
     },
     {
       id: "support",
       path: "/support",
-      name: "پشتیبانی زنده",
+      name: "پشتیبانی",
       icon: Headset,
+      segment: "management",
       allowedRoles: ["owner", "cashier", "kitchen", "waiter"],
     },
   ];
 
+  // همگام‌سازی خودکار تب فعال سایدبار با صفحه فعلی
+  useEffect(() => {
+    const matched = menuItems.find((item) => item.path === location.pathname);
+    if (matched) {
+      setActiveSegment(matched.segment);
+    }
+  }, [location.pathname]);
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const rawRes = await authApi.getDashboardStatus();
+        const statusData = rawRes?.data?.data || rawRes?.data || rawRes;
+
+        if (statusData) {
+          if (statusData.name) {
+            setUserName(statusData.name);
+            localStorage.setItem("user_name", statusData.name);
+          }
+
+          const serverRole = String(statusData.role || role).toLowerCase();
+          setRole(serverRole);
+          localStorage.setItem("role", serverRole);
+
+          if (typeof statusData.hasRestaurant !== "undefined") {
+            const venueStatus = statusData.hasRestaurant === true;
+            setHasVenue(venueStatus);
+
+            if (serverRole === "owner" && venueStatus === true) {
+              const hasSeenTour = localStorage.getItem("has_seen_tour");
+
+              if (!hasSeenTour && window.innerWidth > 1024) {
+                setTimeout(() => {
+                  const tourDriver = driver({
+                    showProgress: true,
+                    animate: true,
+                    progressText: "{{current}} از {{total}}",
+                    doneBtnText: "پایان تور",
+                    nextBtnText: "بعدی ➔",
+                    prevBtnText: "قبلی",
+                    overlayColor: "rgba(15, 23, 42, 0.6)",
+                    onDestroyStarted: () => {
+                      localStorage.setItem("has_seen_tour", "true");
+                      setActiveSegment("operations");
+                      tourDriver.destroy();
+                    },
+                    steps: [
+                      {
+                        element: "#tour-dashboard",
+                        onHighlightStarted: () =>
+                          setActiveSegment("operations"),
+                        popover: {
+                          title: "داشبورد مدیریت",
+                          description:
+                            "در اینجا می‌توانید آمار فروش، تعداد سفارشات زنده و وضعیت کلی رستوران را در یک نگاه ببینید.",
+                          side: "left",
+                          align: "start",
+                        },
+                      },
+                      {
+                        element: "#tour-ProductManagement",
+                        onHighlightStarted: () =>
+                          setActiveSegment("operations"),
+                        popover: {
+                          title: "مدیریت محصولات",
+                          description:
+                            "منوی دیجیتال خود را از اینجا بسازید. دسته‌بندی‌ها را تعریف کنید و غذاها را با عکس و قیمت اضافه کنید.",
+                          side: "left",
+                        },
+                      },
+                      {
+                        element: "#tour-kitchenPanel",
+                        onHighlightStarted: () =>
+                          setActiveSegment("operations"),
+                        popover: {
+                          title: "ترمینال آشپزخانه",
+                          description:
+                            "این بخش مخصوص آشپزهاست تا سفارشات ثبت شده را به صورت زنده روی مانیتور ببینند و وضعیت پخت را تغییر دهند.",
+                          side: "left",
+                        },
+                      },
+                      {
+                        element: "#tour-TeamManagement",
+                        onHighlightStarted: () =>
+                          setActiveSegment("management"),
+                        popover: {
+                          title: "تیم من",
+                          description:
+                            "برای آشپزخانه، صندوق‌دار و گارسون‌های خود دسترسی اختصاصی بسازید تا هر کدام پنل خود را داشته باشند.",
+                          side: "left",
+                        },
+                      },
+                      {
+                        element: "#tour-wallet",
+                        onHighlightStarted: () =>
+                          setActiveSegment("management"),
+                        popover: {
+                          title: "کیف پول و تسویه",
+                          description:
+                            "درآمدهای آنلاین شما به این کیف پول واریز می‌شود و می‌توانید درخواست تسویه‌حساب به حساب بانکی خود بدهید.",
+                          side: "left",
+                        },
+                      },
+                    ],
+                  });
+
+                  tourDriver.drive();
+                }, 1000);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error("خطا در دریافت وضعیت سایدبار:", error);
+      }
+    };
+
+    fetchUserData();
+  }, [location.pathname]);
+
+  const userInitial = userName.charAt(0);
+
+  const allowedItems = menuItems.filter((item) =>
+    item.allowedRoles.includes(normalizedRole),
+  );
+
+  const showSegmentControl = normalizedRole === "owner";
+  const visibleDesktopItems = showSegmentControl
+    ? allowedItems.filter((item) => item.segment === activeSegment)
+    : allowedItems;
+
+  const mainMobileItems = allowedItems.slice(0, 4);
+  const moreMobileItems = allowedItems.slice(4);
+
+  const roleBadgeMap: Record<string, string> = {
+    owner: "مدیر مجموعه",
+    cashier: "صندوق‌دار",
+    kitchen: "آشپزخانه",
+    waiter: "گارسون",
+  };
+
   const handleLogout = () => {
-    // انیمیشن خروج نرم
     document.body.style.opacity = "0";
     document.body.style.transition = "opacity 0.5s ease";
     setTimeout(() => {
@@ -120,168 +306,371 @@ export const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }: SidebarProps) => {
     }, 400);
   };
 
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (isMobileMoreOpen) return;
+    const touch = e.touches[0];
+    const elem = document.elementFromPoint(touch.clientX, touch.clientY);
+    const tabPath = elem
+      ?.closest("[data-tab-path]")
+      ?.getAttribute("data-tab-path");
+
+    if (tabPath && tabPath !== "more" && tabPath !== location.pathname) {
+      if (isMenuLocked && tabPath !== "/dashboard") {
+        showMobileWarning();
+        return;
+      }
+      navigate(tabPath, { replace: true });
+      if (navigator.vibrate) navigator.vibrate(10);
+    }
+  };
+
+  const showMobileWarning = () => {
+    setMobileWarning("ابتدا مجموعه خود را ثبت کنید 🔒");
+    if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
+    setTimeout(() => setMobileWarning(null), 3000);
+  };
+
+  const isMenuLocked = normalizedRole === "owner" && hasVenue === false;
+
   return (
     <>
-      <aside
-        className={`fixed inset-y-0 right-0 z-50 w-[280px] bg-white/70 backdrop-blur-2xl border-l border-white/40 shadow-[-20px_0_40px_rgba(0,0,0,0.04)] transform transition-transform duration-500 cubic-bezier(0.4, 0, 0.2, 1) lg:translate-x-0 flex flex-col ${
-          isSidebarOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"
-        }`}
-      >
-        {/* افکت نوری پس زمینه سایدبار */}
-        <div className="absolute top-0 right-0 w-full h-40 bg-gradient-to-b from-orange-500/5 to-transparent pointer-events-none" />
-
-        <div className="flex-1 flex flex-col p-5 overflow-y-auto [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-slate-200 [&::-webkit-scrollbar-thumb]:rounded-full">
-          {/* ========================================== */}
-          {/* لوگو و هدر سایدبار */}
-          {/* ========================================== */}
-          <div className="flex items-center justify-between mb-8 mt-2 px-2 relative z-10">
-            <div className="flex items-center gap-3 group cursor-pointer">
-              <div className="w-11 h-11 bg-gradient-to-br from-orange-400 to-orange-600 rounded-[14px] flex items-center justify-center shadow-lg shadow-orange-500/30 transition-transform duration-300 group-hover:rotate-12 group-hover:scale-105">
-                <Utensils className="text-white" size={22} strokeWidth={2.5} />
+      {/* سایدبار دسکتاپ (Apple Glassmorphism) */}
+      <aside className="hidden lg:flex fixed inset-y-6 right-6 z-50 w-[268px] bg-white/55 backdrop-blur-[40px] backdrop-saturate-[200%] border border-white/80 shadow-[0_20px_50px_rgba(0,0,0,0.06)] rounded-[34px] flex-col overflow-hidden">
+        <div className="flex-1 flex flex-col p-5 relative z-10 overflow-y-auto hide-scrollbar">
+          {/* هدر برند */}
+          <div className="flex items-center justify-between mb-6 mt-1 px-1.5 shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-slate-900 rounded-[14px] flex items-center justify-center shadow-md shadow-slate-900/15 shrink-0">
+                <Store className="text-white" size={20} strokeWidth={2.5} />
               </div>
-              <div className="flex flex-col">
-                <span className="text-[22px] font-black text-slate-800 tracking-tight leading-none">
-                  Digi-<span className="text-orange-500">Menoo</span>
-                </span>
-                <span className="text-[10px] font-bold text-slate-400 mt-1 tracking-widest uppercase">
-                  Management Panel
-                </span>
-              </div>
+              <span className="text-[20px] font-black text-slate-900 tracking-tight">
+                Digi<span className="text-orange-500">Menoo</span>
+              </span>
             </div>
-
-            <button
-              onClick={() => setIsSidebarOpen(false)}
-              className="lg:hidden w-8 h-8 flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-colors"
-            >
-              <X size={20} strokeWidth={2.5} />
-            </button>
           </div>
 
-          {/* ========================================== */}
-          {/* منوی ناوبری */}
-          {/* ========================================== */}
-          <nav className="flex-1 space-y-1.5 relative z-10">
-            {menuItems.map((item) => {
-              if (!item.allowedRoles.includes(role)) return null;
+          {/* سوئیچر iOS برای خلوت و تمیز ماندن منو */}
+          {showSegmentControl && (
+            <div className="bg-slate-200/60 p-1 rounded-[16px] grid grid-cols-2 gap-1 mb-5 shrink-0 border border-white/50">
+              <button
+                type="button"
+                onClick={() => setActiveSegment("operations")}
+                className={`py-2 px-2 rounded-[13px] text-[12px] font-black transition-all duration-200 ${
+                  activeSegment === "operations"
+                    ? "bg-white text-slate-900 shadow-[0_2px_10px_rgba(0,0,0,0.06)]"
+                    : "text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                سالن و سفارش
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveSegment("management")}
+                className={`py-2 px-2 rounded-[13px] text-[12px] font-black transition-all duration-200 ${
+                  activeSegment === "management"
+                    ? "bg-white text-slate-900 shadow-[0_2px_10px_rgba(0,0,0,0.06)]"
+                    : "text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                مالی و مدیریت
+              </button>
+            </div>
+          )}
 
-              if (item.comingSoon) {
-                return (
-                  <div
-                    key={item.id}
-                    className="group w-full flex items-center justify-between px-4 py-3.5 rounded-[16px] text-sm font-bold text-slate-400 bg-slate-50/50 opacity-70 cursor-not-allowed select-none border border-transparent transition-all"
-                  >
-                    <div className="flex items-center gap-3">
-                      <item.icon
-                        size={20}
-                        strokeWidth={2}
-                        className="opacity-50"
-                      />
-                      {item.name}
-                    </div>
-                    <div className="bg-slate-200 text-slate-500 text-[9px] font-black px-2 py-1 rounded-md flex items-center gap-1 group-hover:bg-slate-300 transition-colors">
-                      <Sparkles size={10} /> بزودی
-                    </div>
-                  </div>
-                );
-              }
+          {/* لیست آیتم‌های جادار و تمیز */}
+          <nav className="flex-1 space-y-2 pb-4 relative">
+            {isMenuLocked && (
+              <div className="absolute inset-x-0 inset-y-12 z-20 flex flex-col items-center justify-center bg-white/65 backdrop-blur-[3px] rounded-3xl animate-in fade-in duration-500">
+                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg text-orange-500 mb-3 border border-orange-100 animate-bounce">
+                  <Lock size={20} strokeWidth={2.5} />
+                </div>
+                <span className="text-xs font-black text-slate-700 bg-white/95 px-3.5 py-1.5 rounded-xl shadow-sm">
+                  مجموعه خود را ثبت کنید
+                </span>
+              </div>
+            )}
 
+            {visibleDesktopItems.map((item) => {
               const isActive = location.pathname === item.path;
+              const isDisabled = isMenuLocked && item.path !== "/dashboard";
 
-              return (
+              return isDisabled ? (
+                <div
+                  key={item.id}
+                  className="flex items-center gap-3 px-3.5 py-3 rounded-[20px] text-[14px] font-black text-slate-300 opacity-50 cursor-not-allowed select-none"
+                >
+                  <div className="w-8 h-8 rounded-[11px] bg-slate-100/60 flex items-center justify-center shrink-0">
+                    <item.icon size={18} strokeWidth={2} />
+                  </div>
+                  <span className="truncate">{item.name}</span>
+                </div>
+              ) : (
                 <Link
                   key={item.id}
+                  id={`tour-${item.id}`}
                   to={item.path}
-                  onClick={() => setIsSidebarOpen(false)}
-                  className={`group relative w-full flex items-center justify-between px-4 py-3.5 rounded-[16px] transition-all duration-300 text-sm font-black overflow-hidden ${
+                  className={`group flex items-center gap-3 px-3.5 py-3 rounded-[20px] transition-all duration-200 text-[14px] font-black ${
                     isActive
-                      ? "bg-white text-orange-600 shadow-[0_8px_20px_rgb(249,115,22,0.08)] border border-orange-100/50 scale-[1.02]"
-                      : "text-slate-500 hover:bg-white hover:text-slate-800 hover:shadow-sm border border-transparent"
+                      ? "bg-white text-slate-900 shadow-[0_8px_24px_rgba(249,115,22,0.10)] border border-orange-100/80"
+                      : "text-slate-600 hover:bg-white/65 hover:text-slate-900"
                   }`}
                 >
-                  {/* خط رنگی نشانگر حالت فعال (راست چین) */}
-                  {isActive && (
-                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-orange-500 rounded-l-full shadow-[0_0_10px_rgb(249,115,22,0.5)]"></div>
-                  )}
-
-                  <div className="flex items-center gap-3 transition-transform duration-300 group-hover:-translate-x-1">
-                    <item.icon
-                      size={20}
-                      strokeWidth={isActive ? 2.5 : 2}
-                      className={`transition-all duration-300 ${
-                        isActive
-                          ? "text-orange-500"
-                          : "text-slate-400 group-hover:text-slate-600"
-                      } group-hover:scale-110`}
-                    />
-                    {item.name}
+                  <div
+                    className={`w-8 h-8 rounded-[11px] flex items-center justify-center shrink-0 transition-all duration-200 ${
+                      isActive
+                        ? "bg-orange-500 text-white shadow-sm shadow-orange-500/30"
+                        : "bg-white/80 text-slate-400 group-hover:text-orange-500 shadow-2xs"
+                    }`}
+                  >
+                    <item.icon size={17} strokeWidth={isActive ? 2.5 : 2.2} />
                   </div>
-
-                  {!isActive && (
-                    <ChevronLeft
-                      size={16}
-                      className="text-slate-300 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300"
-                    />
-                  )}
+                  <span className="truncate">{item.name}</span>
                 </Link>
               );
             })}
           </nav>
 
-          {/* ========================================== */}
-          {/* کارت پروفایل و خروج (Sticky Bottom) */}
-          {/* ========================================== */}
-          <div className="mt-8 pt-4 relative z-10">
-            <div className="bg-white border border-slate-100 p-2.5 rounded-[20px] shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center justify-between group">
-              <div className="flex items-center gap-3 overflow-hidden pr-1">
-                {/* آواتار هوشمند */}
-                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center shrink-0 shadow-md">
-                  <span className="text-sm font-black text-white uppercase">
-                    {userInitial}
-                  </span>
+          {/* کارت پروفایل پایین سایدبار */}
+          <div className="mt-auto pt-2 relative z-30 shrink-0">
+            <div className="bg-white/80 backdrop-blur-md p-2.5 rounded-[22px] shadow-2xs border border-white flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5 overflow-hidden">
+                <div className="w-10 h-10 rounded-[14px] bg-slate-900 flex items-center justify-center shrink-0 text-white font-black text-sm shadow-sm">
+                  {userInitial}
                 </div>
-
-                <div className="flex flex-col truncate">
-                  <span
-                    className="text-[13px] font-black text-slate-800 truncate"
-                    title={userName}
-                  >
+                <div className="min-w-0">
+                  <span className="block text-[13px] font-black text-slate-800 truncate">
                     {userName}
                   </span>
-                  <span className="text-[10px] font-bold text-slate-400 truncate">
-                    {role === "owner"
-                      ? "مدیر کل مجموعه"
-                      : role === "cashier"
-                        ? "مسئول صندوق"
-                        : role === "kitchen"
-                          ? "مدیریت آشپزخانه"
-                          : "نیروی سالن (گارسون)"}
+                  <span className="block text-[10px] font-bold text-slate-400 truncate">
+                    {roleBadgeMap[normalizedRole] || "همکار"}
                   </span>
                 </div>
               </div>
-
               <button
+                type="button"
                 onClick={handleLogout}
-                className="w-10 h-10 shrink-0 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-rose-50 hover:text-rose-500 transition-all duration-300"
-                title="خروج از حساب کاربری"
+                title="خروج از حساب"
+                className="w-9 h-9 rounded-[12px] text-slate-400 hover:bg-rose-50 hover:text-rose-500 flex items-center justify-center transition-colors shrink-0"
               >
-                <LogOut
-                  size={18}
-                  strokeWidth={2.5}
-                  className="group-hover:-translate-x-0.5 transition-transform"
-                />
+                <LogOut size={18} strokeWidth={2.5} />
               </button>
             </div>
           </div>
         </div>
       </aside>
 
-      {/* Overlay (پس‌زمینه تاریک موبایل) */}
-      {isSidebarOpen && (
-        <div
-          onClick={() => setIsSidebarOpen(false)}
-          className="fixed inset-0 z-40 lg:hidden bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300"
-        />
+      {/* موبایل: داک کپسولی بازشونده */}
+      {mobileWarning && (
+        <div className="lg:hidden fixed bottom-24 inset-x-4 z-50 flex justify-center animate-in slide-in-from-bottom-5 fade-in duration-300">
+          <div className="bg-slate-900 text-white text-xs font-black px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-2">
+            <Lock size={16} className="text-orange-400" /> {mobileWarning}
+          </div>
+        </div>
       )}
+
+      <div
+        className={`lg:hidden fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm transition-opacity duration-300 ${
+          isMobileMoreOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+        }`}
+        onClick={() => setIsMobileMoreOpen(false)}
+      />
+
+      <div
+        className={`lg:hidden fixed bottom-[90px] inset-x-4 z-40 bg-white/95 backdrop-blur-2xl border border-white/60 shadow-2xl rounded-[32px] p-5 transition-all duration-400 ease-out transform ${
+          isMobileMoreOpen
+            ? "translate-y-0 opacity-100 scale-100"
+            : "translate-y-20 opacity-0 scale-95 pointer-events-none"
+        }`}
+      >
+        <div className="grid grid-cols-3 gap-4 relative">
+          {isMenuLocked && (
+            <div className="absolute inset-0 bg-white/50 backdrop-blur-[2px] z-10 rounded-2xl flex items-center justify-center">
+              <Lock size={32} className="text-slate-300 opacity-50" />
+            </div>
+          )}
+          {moreMobileItems.map((item) => (
+            <div
+              key={item.id}
+              onClick={() => {
+                if (isMenuLocked) {
+                  showMobileWarning();
+                  return;
+                }
+                setIsMobileMoreOpen(false);
+                navigate(item.path);
+              }}
+              className={`flex flex-col items-center gap-2 ${isMenuLocked ? "opacity-40" : "cursor-pointer"}`}
+            >
+              <div
+                className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-colors ${
+                  location.pathname === item.path
+                    ? "bg-orange-50 text-orange-500 shadow-inner"
+                    : "bg-slate-100 text-slate-500"
+                }`}
+              >
+                <item.icon size={20} strokeWidth={2.5} />
+              </div>
+              <span
+                className={`text-[11px] font-black text-center leading-tight ${
+                  location.pathname === item.path
+                    ? "text-orange-500"
+                    : "text-slate-600"
+                }`}
+              >
+                {item.name}
+              </span>
+            </div>
+          ))}
+
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex flex-col items-center gap-2 relative z-20"
+          >
+            <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-500 flex items-center justify-center">
+              <LogOut size={20} strokeWidth={2.5} />
+            </div>
+            <span className="text-[11px] font-black text-center text-rose-600">
+              خروج
+            </span>
+          </button>
+        </div>
+      </div>
+
+      <div
+        className="lg:hidden fixed bottom-6 inset-x-0 mx-auto w-max max-w-[92vw] px-1.5 py-1.5 bg-white/70 backdrop-blur-[40px] backdrop-saturate-[200%] border border-white shadow-[0_15px_40px_rgba(0,0,0,0.12)] rounded-full flex items-center justify-between gap-1 z-50 select-none"
+        onTouchMove={handleTouchMove}
+      >
+        {mainMobileItems.map((item) => {
+          const isActive = location.pathname === item.path && !isMobileMoreOpen;
+          const isDisabled = isMenuLocked && item.path !== "/dashboard";
+
+          return (
+            <div
+              key={item.id}
+              data-tab-path={item.path}
+              onClick={() => {
+                if (isDisabled) {
+                  showMobileWarning();
+                  return;
+                }
+                setIsMobileMoreOpen(false);
+                navigate(item.path);
+              }}
+              className={`relative flex items-center justify-center h-12 rounded-full transition-all duration-400 ease-out overflow-hidden ${
+                isDisabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer"
+              } ${
+                isActive
+                  ? "bg-white shadow-sm px-4 scale-105"
+                  : "bg-transparent px-3"
+              }`}
+            >
+              {isDisabled && (
+                <div className="absolute top-1 right-1 w-2 h-2 bg-orange-400 rounded-full animate-pulse"></div>
+              )}
+              <item.icon
+                size={22}
+                strokeWidth={isActive ? 2.5 : 2}
+                className={`shrink-0 transition-colors duration-300 ${
+                  isActive ? "text-orange-500" : "text-slate-500"
+                }`}
+              />
+              <span
+                className={`font-black text-[13px] text-orange-500 overflow-hidden whitespace-nowrap transition-all duration-400 ${
+                  isActive
+                    ? "max-w-[110px] opacity-100 mr-2"
+                    : "max-w-0 opacity-0 mr-0"
+                }`}
+              >
+                {item.name}
+              </span>
+            </div>
+          );
+        })}
+
+        {moreMobileItems.length > 0 && (
+          <div
+            data-tab-path="more"
+            onClick={() => setIsMobileMoreOpen(!isMobileMoreOpen)}
+            className={`relative flex items-center justify-center h-12 px-3 rounded-full cursor-pointer transition-all duration-300 ${
+              isMobileMoreOpen
+                ? "bg-slate-900 text-white scale-105"
+                : "bg-transparent text-slate-500"
+            }`}
+          >
+            {isMenuLocked && (
+              <div className="absolute top-1 right-2 w-2 h-2 bg-orange-400 rounded-full animate-pulse"></div>
+            )}
+            <MoreHorizontal
+              size={24}
+              strokeWidth={isMobileMoreOpen ? 3 : 2}
+              className={`transition-transform duration-300 ${
+                isMobileMoreOpen ? "rotate-90" : "rotate-0"
+              }`}
+            />
+          </div>
+        )}
+      </div>
+
+      <style>{`
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        .driver-popover {
+          background-color: rgba(255, 255, 255, 0.95) !important;
+          backdrop-filter: blur(20px) !important;
+          border-radius: 28px !important;
+          border: 1px solid rgba(255, 255, 255, 1) !important;
+          font-family: inherit !important;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.12) !important;
+          padding: 24px !important;
+          min-width: 320px;
+        }
+        .driver-popover-title {
+          font-weight: 900 !important;
+          font-size: 1.2rem !important;
+          color: #0f172a !important;
+          margin-bottom: 8px !important;
+          direction: rtl !important;
+        }
+        .driver-popover-description {
+          font-weight: 700 !important;
+          font-size: 0.85rem !important;
+          color: #64748b !important;
+          line-height: 1.8 !important;
+          direction: rtl !important;
+          margin-bottom: 16px !important;
+        }
+        .driver-popover-footer {
+          margin-top: 16px !important;
+        }
+        .driver-popover-next-btn {
+          background-color: #f97316 !important;
+          color: white !important;
+          text-shadow: none !important;
+          border-radius: 14px !important;
+          font-weight: 900 !important;
+          border: none !important;
+          padding: 8px 16px !important;
+        }
+        .driver-popover-prev-btn {
+          border-radius: 14px !important;
+          font-weight: 900 !important;
+          color: #64748b !important;
+          border: 1px solid #e2e8f0 !important;
+        }
+        .driver-popover-close-btn {
+          color: #94a3b8 !important;
+        }
+        .driver-popover-close-btn:hover {
+          color: #f43f5e !important;
+        }
+        div.driver-active-element {
+          border-radius: 24px;
+        }
+      `}</style>
     </>
   );
 };
+
+export default Sidebar;

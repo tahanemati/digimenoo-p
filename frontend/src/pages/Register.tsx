@@ -133,7 +133,7 @@ export const Register = () => {
   const [countdown, setCountdown] = useState(0);
 
   useEffect(() => {
-    let timer: NodeJS.Timeout;
+    let timer: ReturnType<typeof setInterval>;
     if (countdown > 0) {
       timer = setInterval(() => setCountdown((prev) => prev - 1), 1000);
     }
@@ -168,7 +168,7 @@ export const Register = () => {
   };
 
   // =======================
-  // 🔴 مرحله ۱: ارسال موبایل به سرور
+  // مرحله ۱: ارسال شماره موبایل به جنگو
   // =======================
   const handleSendOTP = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -178,7 +178,10 @@ export const Register = () => {
     setError("");
 
     try {
-      await authApi.sendOtp(mobile);
+      const res = await authApi.sendOtp(mobile);
+      if (res?.data?.dev_otp) {
+        console.info("🔑 کد تایید تست (لوکال):", res.data.dev_otp);
+      }
       setStep(2);
       setOtp("");
       setCountdown(120);
@@ -190,7 +193,7 @@ export const Register = () => {
   };
 
   // =======================
-  // 🔴 ارسال مجدد کد
+  // ارسال مجدد کد
   // =======================
   const handleResendOTP = async () => {
     if (countdown > 0) return;
@@ -199,7 +202,10 @@ export const Register = () => {
     setError("");
 
     try {
-      await authApi.resendOtp(mobile);
+      const res = await authApi.resendOtp(mobile);
+      if (res?.data?.dev_otp) {
+        console.info("🔑 کد تایید تست (لوکال):", res.data.dev_otp);
+      }
       setCountdown(120);
       setOtp("");
     } catch (err: any) {
@@ -210,10 +216,7 @@ export const Register = () => {
   };
 
   // =======================
-  // 🔴 مرحله ۲: تایید نهایی کد
-  // =======================
-  // =======================
-  // 🔴 مرحله ۲: تایید نهایی کد (در فایل Register.tsx)
+  // مرحله ۲: تایید کد و انتقال مستقیم به تکمیل ثبت‌نام
   // =======================
   const handleVerifyOTP = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -223,27 +226,36 @@ export const Register = () => {
     setError("");
 
     try {
-      const data = await authApi.verifyOtp(mobile, otp);
+      const res = await authApi.verifyOtp(mobile, otp);
+      const payload = res?.data || res;
 
-      // ۱. ذخیره توکن‌ها
-      localStorage.setItem(
-        "access_token",
-        data.token || data.accessToken || data.access_token,
-      );
-      if (data.refreshToken || data.refresh_token) {
-        localStorage.setItem(
-          "refresh_token",
-          data.refreshToken || data.refresh_token,
-        );
+      const accessToken =
+        payload?.token ||
+        payload?.access ||
+        payload?.accessToken ||
+        payload?.access_token;
+
+      if (!accessToken) {
+        throw new Error("توکن ورود از سرور دریافت نشد.");
       }
-      localStorage.setItem("role", data.role || "owner");
 
-      // ۲. ذخیره شماره موبایل برای صفحه تکمیل
+      localStorage.setItem("access_token", accessToken);
+
+      const refreshToken =
+        payload?.refresh || payload?.refreshToken || payload?.refresh_token;
+      if (refreshToken) {
+        localStorage.setItem("refresh_token", refreshToken);
+      }
+
+      const userRole = payload?.role || payload?.user?.role || "owner";
+      localStorage.setItem("role", userRole);
+
+      if (payload?.user?.name) {
+        localStorage.setItem("user_name", payload.user.name);
+      }
       localStorage.setItem("registered_mobile", mobile);
 
-      // ۳. 🔴 فیکس نهایی: کلا شرط بک‌اند رو برداشتیم.
-      // با استفاده از navigate (بدون رفرش شدن صفحه) مستقیم برو به پروفایل!
-      navigate("/complete-profile");
+      navigate("/complete-profile", { replace: true });
     } catch (err: any) {
       setError(err.message || "کد وارد شده نامعتبر یا منقضی شده است.");
     } finally {
@@ -440,7 +452,7 @@ export const Register = () => {
                       {isLoading ? (
                         <Loader2 size={20} className="animate-spin" />
                       ) : (
-                        "تایید و ورود"
+                        "تایید و ادامه"
                       )}
                     </button>
                   </div>
@@ -455,3 +467,5 @@ export const Register = () => {
     </div>
   );
 };
+
+export default Register;

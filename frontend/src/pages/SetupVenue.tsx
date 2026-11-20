@@ -42,7 +42,7 @@ const appleAnimations = `
 `;
 
 // =======================
-// پنل گرافیکی (سمت چپ صفحه در حالت LTR / راست در RTL)
+// پنل گرافیکی
 // =======================
 const GraphicPanel = () => (
   <div className="hidden lg:flex w-1/2 bg-[#fafafa] relative items-center justify-center overflow-hidden border-r border-slate-200/70 select-none">
@@ -81,7 +81,7 @@ const GraphicPanel = () => (
             <h4 className="font-bold text-slate-800 text-sm mb-0.5">
               دامنه اختصاصی شما
             </h4>
-            <p className="text-xs text-slate-500 font-medium">
+            <p className="text-xs text-slate-500 font-medium leading-relaxed">
               مشتریان مستقیماً از طریق لینک منحصر‌به‌فرد وارد منوی شما می‌شوند.
             </p>
           </div>
@@ -98,7 +98,7 @@ const GraphicPanel = () => (
             <h4 className="font-bold text-slate-800 text-sm mb-0.5">
               اتصال یکپارچه به داشبورد
             </h4>
-            <p className="text-xs text-slate-500 font-medium">
+            <p className="text-xs text-slate-500 font-medium leading-relaxed">
               پس از ثبت، تمام امکانات فروش و انبارداری برای شما فعال خواهد شد.
             </p>
           </div>
@@ -122,28 +122,57 @@ export const SetupVenue = () => {
   });
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isCheckingSlug, setIsCheckingSlug] = useState(false);
   const [error, setError] = useState("");
   const [successData, setSuccessData] = useState<{ message: string } | null>(
     null,
   );
 
+  const toEnglishDigits = (str: string) => {
+    const persianNumbers = ["۰", "۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹"];
+    const arabicNumbers = ["٠", "١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩"];
+    return str
+      .split("")
+      .map((c) => {
+        let idx = persianNumbers.indexOf(c);
+        if (idx >= 0) return idx;
+        idx = arabicNumbers.indexOf(c);
+        if (idx >= 0) return idx;
+        return c;
+      })
+      .join("");
+  };
+
   const canGoNext = () => {
     if (step === 1) {
-      return formData.name.trim() !== "" && formData.slug.trim() !== "";
+      return (
+        formData.name.trim().length >= 2 && formData.slug.trim().length >= 3
+      );
     }
     if (step === 2) {
       return (
         formData.city.trim() !== "" &&
         formData.phone.trim() !== "" &&
         formData.address.trim() !== "" &&
-        formData.tableCount.trim() !== ""
+        parseInt(formData.tableCount, 10) >= 1
       );
     }
     return true;
   };
 
-  const nextStep = () => {
-    if (canGoNext()) setStep((prev) => Math.min(prev + 1, 2));
+  const nextStep = async () => {
+    if (!canGoNext()) return;
+
+    setIsCheckingSlug(true);
+    setError("");
+    try {
+      await venuesApi.checkSlug(formData.slug.trim());
+      setStep(2);
+    } catch (err: any) {
+      setError(err.message || "این آدرس انگلیسی قبلاً ثبت شده یا نامعتبر است.");
+    } finally {
+      setIsCheckingSlug(false);
+    }
   };
 
   const prevStep = () => {
@@ -152,43 +181,40 @@ export const SetupVenue = () => {
   };
 
   // =======================
-  // 🔴 ارسال دیتا به سرور
+  // ارسال اطلاعات به جنگو
   // =======================
   const handleSubmit = async () => {
+    if (!canGoNext()) return;
     setIsLoading(true);
     setError("");
 
     try {
       // مرحله ۱: ساخت اولیه رستوران
       await venuesApi.createVenue({
-        name: formData.name,
-        slug: formData.slug,
+        name: formData.name.trim(),
+        slug: formData.slug.trim().toLowerCase(),
       });
 
-      // مرحله ۲: تکمیل اطلاعات مکانی
+      // مرحله ۲: تکمیل اطلاعات مکانی و تعداد میز
       await venuesApi.completeVenue({
-        city: formData.city,
-        tableCount: parseInt(formData.tableCount) || 1,
-        phone: formData.phone,
-        address: formData.address,
+        city: formData.city.trim(),
+        tableCount: parseInt(formData.tableCount, 10) || 1,
+        phone: formData.phone.trim(),
+        address: formData.address.trim(),
       });
 
-      // 🔴 بسیار حیاتی: ذخیره وضعیت در حافظه مرورگر برای عبور سریع از داشبورد
       localStorage.setItem("has_venue", "true");
 
       setSuccessData({
         message: "مجموعه شما با موفقیت در پلتفرم دیجی‌منو ثبت شد.",
       });
 
-      // هدایت به صفحه موفقیت
       setStep(3);
     } catch (err: any) {
       console.error("ارور دریافتی از سرور:", err);
-      // نمایش پیام خطای دقیق بک‌اند
       setError(
         err.message ||
           err.response?.data?.message ||
-          err.response?.data?.title ||
           "خطا در ارتباط با سرور. لطفاً مجدداً تلاش کنید.",
       );
     } finally {
@@ -262,13 +288,13 @@ export const SetupVenue = () => {
                       نام رستوران و آدرس اختصاصی (لینک منو) خود را وارد کنید.
                     </p>
 
-                    <div className="space-y-4">
+                    <div className="space-y-5">
                       <div className="group">
                         <label className="block text-xs font-bold text-slate-500 mb-2 mr-1 transition-colors group-focus-within:text-slate-800">
                           نام رستوران / کافه
                         </label>
                         <div className="relative">
-                          <div className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 group-focus-within:text-orange-500 transition-colors">
+                          <div className="absolute inset-y-0 right-0 pr-4 flex items-center justify-center pointer-events-none text-slate-400 group-focus-within:text-orange-500 transition-colors">
                             <Store size={18} />
                           </div>
                           <input
@@ -276,45 +302,58 @@ export const SetupVenue = () => {
                             autoFocus
                             placeholder="مثال: رستوران ارکیده"
                             value={formData.name}
-                            onChange={(e) =>
-                              setFormData({ ...formData, name: e.target.value })
-                            }
+                            onChange={(e) => {
+                              setError("");
+                              setFormData({
+                                ...formData,
+                                name: e.target.value,
+                              });
+                            }}
                             className="w-full bg-slate-50/70 border border-slate-200/90 text-slate-900 rounded-2xl py-4 pr-11 pl-4 focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition-all text-sm font-bold placeholder:font-medium placeholder:text-slate-400"
                           />
                         </div>
                       </div>
 
-                      <div className="group">
+                      <div className="group pt-2">
                         <label className="block text-xs font-bold text-slate-500 mb-2 mr-1 transition-colors group-focus-within:text-slate-800">
                           آدرس انگلیسی منو (Slug)
                         </label>
                         <div className="relative">
-                          <div className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 group-focus-within:text-orange-500 transition-colors">
+                          <div className="absolute inset-y-0 right-0 pr-4 flex items-center justify-center pointer-events-none text-slate-400 group-focus-within:text-orange-500 transition-colors">
                             <LinkIcon size={18} />
                           </div>
                           <input
                             type="text"
                             dir="ltr"
-                            placeholder="orkideh"
+                            placeholder="orkideh-cafe"
                             value={formData.slug}
-                            onChange={(e) =>
+                            onChange={(e) => {
+                              setError("");
                               setFormData({
                                 ...formData,
-                                slug: e.target.value
+                                slug: toEnglishDigits(e.target.value)
                                   .toLowerCase()
+                                  .replace(/\s+/g, "-")
                                   .replace(/[^a-z0-9-]/g, ""),
-                              })
-                            }
-                            className="w-full bg-slate-50/70 border border-slate-200/90 text-slate-900 rounded-2xl py-4 pl-11 pr-4 focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition-all text-left text-sm font-mono placeholder:font-sans placeholder:text-right placeholder:text-slate-400"
+                              });
+                            }}
+                            className="w-full bg-slate-50/70 border border-slate-200/90 text-slate-900 rounded-2xl py-4 pr-11 pl-4 focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition-all text-left text-sm font-mono placeholder:font-sans placeholder:text-right placeholder:text-slate-400"
                           />
                         </div>
                         <div className="mt-3 flex items-center justify-end">
-                          <div className="bg-emerald-50/70 border border-emerald-100 text-emerald-600 px-3 py-2 rounded-xl text-[11px] font-black dir-ltr flex items-center gap-2 shadow-sm">
-                            <Sparkles size={14} className="text-emerald-500" />
-                            digimenoo.ir/
-                            {formData.slug || (
-                              <span className="text-emerald-300">yourname</span>
-                            )}
+                          <div className="bg-emerald-50/70 border border-emerald-100 text-emerald-600 px-3 py-2 rounded-xl text-[11px] font-black dir-ltr flex items-center gap-2 shadow-sm max-w-full overflow-hidden">
+                            <Sparkles
+                              size={14}
+                              className="text-emerald-500 shrink-0"
+                            />
+                            <span className="truncate flex-1">
+                              digimenoo.ir/
+                              {formData.slug || (
+                                <span className="text-emerald-300">
+                                  yourname
+                                </span>
+                              )}
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -332,14 +371,14 @@ export const SetupVenue = () => {
                       جزئیات تماس و آدرس مجموعه را برای ثبت در سیستم وارد کنید.
                     </p>
 
-                    <div className="space-y-4">
+                    <div className="space-y-5">
                       <div className="grid grid-cols-2 gap-4">
                         <div className="group">
                           <label className="block text-xs font-bold text-slate-500 mb-2 mr-1 transition-colors group-focus-within:text-slate-800">
                             شهر
                           </label>
                           <div className="relative">
-                            <div className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 group-focus-within:text-orange-500 transition-colors">
+                            <div className="absolute inset-y-0 right-0 pr-4 flex items-center justify-center pointer-events-none text-slate-400 group-focus-within:text-orange-500 transition-colors">
                               <MapPin size={18} />
                             </div>
                             <input
@@ -357,38 +396,40 @@ export const SetupVenue = () => {
                             />
                           </div>
                         </div>
+
                         <div className="group">
                           <label className="block text-xs font-bold text-slate-500 mb-2 mr-1 transition-colors group-focus-within:text-slate-800">
                             تعداد میز
                           </label>
                           <div className="relative">
-                            <div className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 group-focus-within:text-orange-500 transition-colors">
+                            <div className="absolute inset-y-0 right-0 pr-4 flex items-center justify-center pointer-events-none text-slate-400 group-focus-within:text-orange-500 transition-colors">
                               <Hash size={18} />
                             </div>
                             <input
-                              type="number"
-                              min="1"
+                              type="tel"
                               dir="ltr"
-                              placeholder="۱۵"
+                              placeholder="15"
                               value={formData.tableCount}
                               onChange={(e) =>
                                 setFormData({
                                   ...formData,
-                                  tableCount: e.target.value,
+                                  tableCount: toEnglishDigits(
+                                    e.target.value,
+                                  ).replace(/[^0-9]/g, ""),
                                 })
                               }
-                              className="w-full bg-slate-50/70 border border-slate-200/90 text-slate-900 rounded-2xl py-3.5 pl-11 pr-3 focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition-all text-left text-sm font-mono placeholder:font-sans placeholder:text-right placeholder:text-slate-400"
+                              className="w-full bg-slate-50/70 border border-slate-200/90 text-slate-900 rounded-2xl py-3.5 pr-11 pl-3 focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition-all text-left text-sm font-mono placeholder:font-sans placeholder:text-right placeholder:text-slate-400"
                             />
                           </div>
                         </div>
                       </div>
 
-                      <div className="group">
+                      <div className="group pt-1">
                         <label className="block text-xs font-bold text-slate-500 mb-2 mr-1 transition-colors group-focus-within:text-slate-800">
                           شماره تماس
                         </label>
                         <div className="relative">
-                          <div className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 group-focus-within:text-orange-500 transition-colors">
+                          <div className="absolute inset-y-0 right-0 pr-4 flex items-center justify-center pointer-events-none text-slate-400 group-focus-within:text-orange-500 transition-colors">
                             <Phone size={18} />
                           </div>
                           <input
@@ -399,22 +440,23 @@ export const SetupVenue = () => {
                             onChange={(e) =>
                               setFormData({
                                 ...formData,
-                                phone: e.target.value,
+                                phone: toEnglishDigits(e.target.value).replace(
+                                  /[^0-9-]/g,
+                                  "",
+                                ),
                               })
                             }
-                            className="w-full bg-slate-50/70 border border-slate-200/90 text-slate-900 rounded-2xl py-3.5 pl-11 pr-4 focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition-all text-left text-sm font-mono placeholder:font-sans placeholder:text-right placeholder:text-slate-400"
+                            className="w-full bg-slate-50/70 border border-slate-200/90 text-slate-900 rounded-2xl py-4 pr-11 pl-4 focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition-all text-left text-sm font-mono placeholder:font-sans placeholder:text-right placeholder:text-slate-400"
                           />
                         </div>
                       </div>
 
-                      <div className="group">
+                      <div className="group pt-1">
                         <label className="block text-xs font-bold text-slate-500 mb-2 mr-1 transition-colors group-focus-within:text-slate-800">
                           آدرس دقیق
                         </label>
                         <div className="relative">
-                          <div className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 group-focus-within:text-orange-500 transition-colors">
-                            <Map size={18} />
-                          </div>
+                          <div className="absolute inset-y-0 right-0 pr-4 flex items-center justify-center pointer-events-none text-slate-400 group-focus-within:text-orange-500 transition-colors"></div>
                           <input
                             type="text"
                             placeholder="خیابان اصلی، کوچه..."
@@ -425,7 +467,7 @@ export const SetupVenue = () => {
                                 address: e.target.value,
                               })
                             }
-                            className="w-full bg-slate-50/70 border border-slate-200/90 text-slate-900 rounded-2xl py-3.5 pr-11 pl-4 focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition-all text-sm font-bold placeholder:text-slate-400"
+                            className="w-full bg-slate-50/70 border border-slate-200/90 text-slate-900 rounded-2xl py-4 pr-11 pl-4 focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition-all text-sm font-bold placeholder:text-slate-400"
                           />
                         </div>
                       </div>
@@ -435,9 +477,10 @@ export const SetupVenue = () => {
               </div>
 
               {/* دکمه‌های ناوبری */}
-              <div className="pt-8 flex items-center gap-3 apple-fade-3">
+              <div className="mt-14 pt-4 border-t border-slate-100 flex items-center gap-3 apple-fade-3">
                 {step === 2 && (
                   <button
+                    type="button"
                     onClick={prevStep}
                     disabled={isLoading}
                     className="w-14 h-14 shrink-0 rounded-2xl bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/90 flex items-center justify-center transition-colors"
@@ -448,26 +491,34 @@ export const SetupVenue = () => {
 
                 {step === 1 ? (
                   <button
+                    type="button"
                     onClick={nextStep}
-                    disabled={!canGoNext()}
+                    disabled={!canGoNext() || isCheckingSlug}
                     className={`group w-full py-4 rounded-2xl font-bold transition-all duration-300 flex justify-center items-center gap-2 text-[15px] ${
-                      canGoNext()
+                      canGoNext() && !isCheckingSlug
                         ? "bg-slate-900 hover:bg-orange-500 text-white shadow-[0_10px_25px_rgba(15,23,42,0.15)] hover:shadow-[0_12px_30px_rgba(249,115,22,0.28)] hover:-translate-y-0.5 active:scale-[0.98]"
                         : "bg-slate-100 text-slate-400 cursor-not-allowed"
                     }`}
                   >
-                    مرحله بعد
-                    <ArrowLeft
-                      size={18}
-                      className="transition-transform duration-300 group-hover:-translate-x-1"
-                    />
+                    {isCheckingSlug ? (
+                      <Loader2 size={20} className="animate-spin" />
+                    ) : (
+                      <>
+                        مرحله بعد
+                        <ArrowLeft
+                          size={18}
+                          className="transition-transform duration-300 group-hover:-translate-x-1"
+                        />
+                      </>
+                    )}
                   </button>
                 ) : (
                   <button
+                    type="button"
                     onClick={handleSubmit}
                     disabled={!canGoNext() || isLoading}
                     className={`group flex-1 py-4 rounded-2xl font-bold transition-all duration-300 flex justify-center items-center gap-2 text-[15px] ${
-                      canGoNext()
+                      canGoNext() && !isLoading
                         ? "bg-orange-500 hover:bg-emerald-500 text-white shadow-[0_10px_25px_rgba(249,115,22,0.2)] hover:shadow-[0_12px_30px_rgba(16,185,129,0.28)] hover:-translate-y-0.5 active:scale-[0.98]"
                         : "bg-slate-100 text-slate-400 cursor-not-allowed"
                     }`}
@@ -507,7 +558,7 @@ export const SetupVenue = () => {
               </p>
 
               <button
-                onClick={() => (window.location.href = "/dashboard")}
+                onClick={() => navigate("/dashboard", { replace: true })}
                 className="w-full py-4 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-bold transition-all shadow-[0_10px_25px_rgba(15,23,42,0.15)] hover:-translate-y-0.5 flex items-center justify-center gap-2"
               >
                 ورود به داشبورد <ArrowLeft size={18} />
@@ -521,3 +572,5 @@ export const SetupVenue = () => {
     </div>
   );
 };
+
+export default SetupVenue;

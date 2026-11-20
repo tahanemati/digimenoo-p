@@ -6,7 +6,6 @@ import {
   ShieldCheck,
   CheckCircle2,
   ArrowRight,
-  Sparkles,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { authApi } from "../service/api";
@@ -129,12 +128,20 @@ export const CompleteProfile = () => {
   const [error, setError] = useState("");
 
   // =======================
-  // 🔴 ارسال به بک‌اند (نسخه حرفه‌ای با Auto-Login)
+  // ثبت اطلاعات تکمیلی در جنگو و انتقال به داشبورد
   // =======================
   const handleCompleteProfile = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!firstName || !lastName || !password || !confirmPassword) {
+    const trimmedFirstName = firstName.trim();
+    const trimmedLastName = lastName.trim();
+
+    if (
+      !trimmedFirstName ||
+      !trimmedLastName ||
+      !password ||
+      !confirmPassword
+    ) {
       setError("لطفاً تمامی فیلدها را پر کنید.");
       return;
     }
@@ -147,81 +154,48 @@ export const CompleteProfile = () => {
       return;
     }
 
-    const realMobile = localStorage.getItem("registered_mobile");
-    if (!realMobile) {
-      setError("شماره موبایل یافت نشد! لطفاً مجدداً وارد شوید.");
-      return;
-    }
+    const realMobile = localStorage.getItem("registered_mobile") || undefined;
 
     setIsLoading(true);
     setError("");
 
     try {
-      // ۱. ثبت اطلاعات کاربر در دیتابیس
       const completeRes = await authApi.completeRegistration({
         mobile: realMobile,
-        name: firstName,
-        lastName: lastName,
-        password: password,
-        confirmPassword: confirmPassword,
+        name: trimmedFirstName,
+        lastName: trimmedLastName,
+        password,
+        confirmPassword,
       });
 
-      const completeData = completeRes.data || completeRes;
-      let token =
-        completeData?.token ||
-        completeData?.Token ||
-        completeData?.accessToken ||
-        completeData?.access_token;
-      let refresh =
-        completeData?.refreshToken ||
-        completeData?.refresh_token ||
-        completeData?.RefreshToken;
+      const payload = completeRes?.data || completeRes;
 
-      // 🔴 ۲. عملیات لاگین خودکار (Auto-Login)
-      // اگر دات‌نت بعد از تکمیل پروفایل توکنی نداد، ما خودمون با پسوردی که الان ساختیم لاگین می‌کنیم!
-      if (!token) {
-        console.log("در حال لاگین خودکار برای دریافت توکن اصلی...");
-        const loginRes = await authApi.login({
-          mobile: realMobile,
-          password: password, // همون پسوردی که کاربر تو فیلد بالا وارد کرده
-        });
+      const accessToken =
+        payload?.token ||
+        payload?.access ||
+        payload?.accessToken ||
+        payload?.access_token;
 
-        const loginData = loginRes.data || loginRes;
-        token =
-          loginData?.token ||
-          loginData?.Token ||
-          loginData?.accessToken ||
-          loginData?.access_token;
-        refresh =
-          loginData?.refreshToken ||
-          loginData?.refresh_token ||
-          loginData?.RefreshToken;
+      const refreshToken =
+        payload?.refresh || payload?.refreshToken || payload?.refresh_token;
 
-        // ذخیره نقش کاربر (از لاگین)
-        localStorage.setItem(
-          "role",
-          loginData?.role || loginData?.Role || "owner",
-        );
+      if (accessToken) {
+        localStorage.setItem("access_token", accessToken);
+      }
+      if (refreshToken) {
+        localStorage.setItem("refresh_token", refreshToken);
       }
 
-      // ۳. ذخیره توکن دائمی
-      if (token) {
-        localStorage.setItem("access_token", token);
-      } else {
-        throw new Error("خطا در دریافت توکن. لطفاً از صفحه ورود لاگین کنید.");
-      }
+      const userRole = payload?.role || payload?.user?.role || "owner";
+      localStorage.setItem("role", userRole);
+      localStorage.setItem(
+        "user_name",
+        payload?.user?.name || `${trimmedFirstName} ${trimmedLastName}`,
+      );
 
-      if (refresh) {
-        localStorage.setItem("refresh_token", refresh);
-      }
-
-      localStorage.setItem("user_name", `${firstName} ${lastName}`);
-
-      // پاک‌سازی
       localStorage.removeItem("registered_mobile");
 
-      // ۴. ورود مقتدرانه به داشبورد
-      window.location.href = "/dashboard";
+      navigate("/dashboard", { replace: true });
     } catch (err: any) {
       setError(
         err.message ||
@@ -233,6 +207,7 @@ export const CompleteProfile = () => {
       setIsLoading(false);
     }
   };
+
   return (
     <div
       className="h-screen w-full bg-white flex font-sans text-slate-800 overflow-hidden"
@@ -279,6 +254,7 @@ export const CompleteProfile = () => {
             <form
               className="w-full space-y-4 apple-fade-2"
               onSubmit={handleCompleteProfile}
+              autoComplete="off"
             >
               <div className="grid grid-cols-2 gap-4">
                 {/* نام */}
@@ -292,6 +268,8 @@ export const CompleteProfile = () => {
                     </div>
                     <input
                       type="text"
+                      name="firstName_new"
+                      autoComplete="nope"
                       value={firstName}
                       onChange={(e) => setFirstName(e.target.value)}
                       placeholder="علی"
@@ -307,6 +285,8 @@ export const CompleteProfile = () => {
                   </label>
                   <input
                     type="text"
+                    name="lastName_new"
+                    autoComplete="nope"
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
                     placeholder="رضایی"
@@ -326,6 +306,8 @@ export const CompleteProfile = () => {
                   </div>
                   <input
                     type="password"
+                    name="newPassword"
+                    autoComplete="new-password"
                     dir="ltr"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -346,6 +328,8 @@ export const CompleteProfile = () => {
                   </div>
                   <input
                     type="password"
+                    name="confirmPassword_new"
+                    autoComplete="new-password"
                     dir="ltr"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
@@ -360,15 +344,15 @@ export const CompleteProfile = () => {
                 <button
                   type="submit"
                   disabled={
-                    !firstName ||
-                    !lastName ||
+                    !firstName.trim() ||
+                    !lastName.trim() ||
                     !password ||
                     !confirmPassword ||
                     isLoading
                   }
                   className={`group w-full py-4 rounded-2xl font-bold transition-all duration-300 flex justify-center items-center gap-2 text-[15px] ${
-                    firstName &&
-                    lastName &&
+                    firstName.trim() &&
+                    lastName.trim() &&
                     password &&
                     confirmPassword &&
                     !isLoading

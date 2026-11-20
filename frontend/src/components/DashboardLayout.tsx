@@ -12,13 +12,6 @@ export const DashboardLayout = () => {
       className="min-h-screen bg-slate-50 text-slate-800 flex font-sans"
       dir="rtl"
     >
-      {/* دکمه منوی موبایل (هماهنگ با تم روشن) */}
-      <button
-        onClick={() => setIsSidebarOpen(true)}
-        className="lg:hidden fixed top-6 right-6 z-40 bg-white/80 p-2.5 rounded-xl border border-slate-200 text-slate-700 shadow-sm backdrop-blur-md hover:bg-slate-50 transition-colors"
-      >
-        <MenuIcon size={24} />
-      </button>
 
       {/* سایدبار ثابت */}
       <Sidebar

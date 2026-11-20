@@ -1,97 +1,91 @@
 import React, { useState } from "react";
 import {
   Phone,
+  Lock,
   Loader2,
   ChevronLeft,
   ArrowRight,
-  ArrowLeft,
-  KeyRound,
-  Lock,
-  Smartphone,
-  QrCode,
-  ShoppingBag,
-  Store,
+  ShieldCheck,
   CheckCircle2,
-  Clock,
-  ChefHat,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { authApi } from "../service/api"; // 🔴 اتصال به API
+import { authApi } from "../service/api"; // 🔴 مسیر را هماهنگ کنید
 
 // =======================
-// پنل گرافیکی پرمیوم (سمت چپ) - تمرکز روی امنیت
+// انیمیشن‌های مینیمال
+// =======================
+const appleAnimations = `
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes softFloat {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-6px); }
+  }
+  .apple-fade-1 { animation: fadeUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.05s both; }
+  .apple-fade-2 { animation: fadeUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both; }
+  .apple-float-slow { animation: softFloat 6s ease-in-out infinite; }
+`;
+
+// =======================
+// پنل گرافیکی اختصاصی بازیابی رمز
 // =======================
 const GraphicPanel = () => (
-  <div className="hidden lg:flex w-1/2 bg-[#fafafa] relative items-center justify-center overflow-hidden border-l border-slate-200">
-    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_#dcfce7,_transparent_50%)] opacity-50"></div>
-    <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,_#ffedd5,_transparent_50%)] opacity-60"></div>
+  <div className="hidden lg:flex w-1/2 bg-[#fafafa] relative items-center justify-center overflow-hidden border-r border-slate-200/70 select-none">
+    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_#ffedd5,_transparent_55%)] opacity-70 pointer-events-none" />
+    <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,_#f1f5f9,_transparent_55%)] pointer-events-none" />
 
     <div
-      className="absolute inset-0 opacity-[0.2]"
+      className="absolute inset-0 opacity-[0.18]"
       style={{
         backgroundImage:
-          "linear-gradient(#e2e8f0 1px, transparent 1px), linear-gradient(90deg, #e2e8f0 1px, transparent 1px)",
+          "linear-gradient(#cbd5e1 1px, transparent 1px), linear-gradient(90deg, #cbd5e1 1px, transparent 1px)",
         backgroundSize: "32px 32px",
       }}
     />
 
-    <div className="relative z-10 w-full max-w-lg flex items-center justify-center animate-in fade-in slide-in-from-bottom-8 duration-1000">
-      <div className="relative w-[260px] h-[540px] bg-slate-50 rounded-[40px] border-[8px] border-slate-800 shadow-2xl overflow-hidden shrink-0 z-20">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-6 bg-slate-800 rounded-b-2xl z-30"></div>
+    <div className="relative z-10 w-full max-w-md flex flex-col gap-5 px-4">
+      <div className="mb-2 apple-fade-1">
+        <h2 className="text-3xl font-black text-slate-900 tracking-tight">
+          دیجی<span className="text-orange-500">منو</span>
+        </h2>
+        <p className="text-slate-500 text-sm mt-1.5 font-medium">
+          یکپارچه‌سازی منوی دیجیتال و اتوماسیون رستوران
+        </p>
+      </div>
 
-        <div className="w-full h-full bg-white relative flex flex-col pt-10">
-          <div className="px-5 py-4 flex flex-col items-center border-b border-slate-100">
-            <div className="w-14 h-14 bg-orange-100 rounded-2xl flex items-center justify-center text-orange-500 mb-3">
-              <Store size={24} />
-            </div>
-            <h3 className="font-black text-slate-800">کافه رستوران لوتوس</h3>
-          </div>
-
-          <div className="p-4 space-y-3 flex-1 overflow-hidden">
-            <div className="bg-white border border-slate-100 p-2.5 rounded-2xl flex gap-3 shadow-sm">
-              <div className="w-16 h-16 bg-slate-100 rounded-xl shrink-0 flex items-center justify-center">
-                <ShoppingBag size={20} className="text-slate-300" />
+      <div className="apple-fade-2">
+        <div className="bg-white/85 backdrop-blur-xl rounded-3xl p-6 shadow-[0_12px_40px_rgb(0,0,0,0.04)] border border-white w-full apple-float-slow">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-orange-50 flex items-center justify-center text-orange-500">
+                <ShieldCheck size={20} />
               </div>
-              <div className="flex-1 flex flex-col justify-center">
-                <div className="w-3/4 h-3 bg-slate-200 rounded mb-2"></div>
-                <div className="w-1/2 h-2 bg-slate-100 rounded mb-3"></div>
-                <div className="flex justify-between items-center">
-                  <div className="w-1/3 h-3 bg-orange-400 rounded"></div>
-                  <div className="w-6 h-6 bg-orange-50 rounded-md"></div>
-                </div>
-              </div>
-            </div>
-            <div className="bg-white border border-slate-100 p-2.5 rounded-2xl flex gap-3 shadow-sm">
-              <div className="w-16 h-16 bg-slate-100 rounded-xl shrink-0"></div>
-              <div className="flex-1 flex flex-col justify-center">
-                <div className="w-2/3 h-3 bg-slate-200 rounded mb-2"></div>
-                <div className="w-1/2 h-2 bg-slate-100 rounded mb-3"></div>
-                <div className="w-1/3 h-3 bg-orange-400 rounded"></div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-800">
+                  بازیابی امن حساب کاربری
+                </h3>
+                <p className="text-xs text-slate-400 font-medium mt-0.5">
+                  محافظت شده با رمزنگاری پیشرفته
+                </p>
               </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      <div className="absolute right-[-40px] top-1/4 bg-white p-5 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.1)] border border-slate-100 z-30 animate-in zoom-in fade-in delay-300 duration-700">
-        <div className="w-32 h-32 bg-slate-50 border border-slate-200 rounded-2xl p-2 mb-4 flex items-center justify-center">
-          <QrCode size={80} className="text-slate-800" strokeWidth={1} />
-        </div>
-        <div className="flex justify-between items-center">
-          <span className="text-xs font-bold text-slate-400">شماره میز</span>
-          <span className="text-xl font-black text-orange-500">۰۵</span>
-        </div>
-      </div>
-
-      <div className="absolute left-[-20px] bottom-1/4 bg-white/80 backdrop-blur-md px-5 py-4 rounded-2xl shadow-xl border border-slate-100 z-30 flex items-center gap-3">
-        <div className="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center">
-          <Smartphone size={20} />
-        </div>
-        <div>
-          <p className="text-sm font-black text-slate-800">منوی دیجیتال</p>
-          <p className="text-xs font-medium text-slate-500 mt-0.5">
-            بدون نیاز به نصب اپلیکیشن
-          </p>
+          <div className="space-y-3">
+            <div className="bg-slate-50/80 rounded-2xl p-4 flex items-center gap-3 border border-slate-100">
+              <div className="w-1.5 h-8 bg-blue-400 rounded-full"></div>
+              <div>
+                <p className="text-sm font-bold text-slate-800">
+                  تایید هویت پیامکی
+                </p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  ارسال کد یکبار مصرف (OTP)
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -100,18 +94,16 @@ const GraphicPanel = () => (
 
 export const ForgotPassword = () => {
   const navigate = useNavigate();
-  const [step, setStep] = useState(1);
 
-  // استیت‌های فرم
+  // اضافه شدن مرحله ۴ برای نمایش پیام موفقیت
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [mobile, setMobile] = useState("");
-  const [otp, setOtp] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [code, setCode] = useState("");
+  const [newPassword, setNewPassword] = useState("");
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // تبدیل اعداد فارسی/عربی به انگلیسی
   const toEnglishDigits = (str: string) => {
     const persianNumbers = ["۰", "۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹"];
     const arabicNumbers = ["٠", "١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩"];
@@ -134,83 +126,60 @@ export const ForgotPassword = () => {
     }
   };
 
-  const handleOtpChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = toEnglishDigits(e.target.value).replace(/[^0-9]/g, "");
-    if (val.length <= 6) setOtp(val); // تغییر به ۶ رقم
+    if (val.length <= 6) setCode(val);
   };
 
-  // =======================
-  // 🔴 اتصال به API: مرحله ۱ (ارسال کد)
-  // =======================
-  const handleSendOTP = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
+  const handleRequestCode = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (mobile.length !== 11) return;
-
     setIsLoading(true);
     setError("");
-
     try {
-      await authApi.forgotPasswordSendOtp(mobile);
+      await authApi.forgotPasswordRequest(mobile);
       setStep(2);
-      setOtp("");
     } catch (err: any) {
-      setError(
-        err.error || err.detail || err.message || "خطا در ارتباط با سرور.",
-      );
+      setError(err?.message || err?.error || "خطا در ارسال کد تایید.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  // =======================
-  // 🔴 اتصال به API: مرحله ۲ (تایید کد)
-  // =======================
-  const handleVerifyOTP = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (otp.length !== 6) return;
-
+  const handleVerifyCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!code) return;
     setIsLoading(true);
     setError("");
-
     try {
-      await authApi.forgotPasswordVerifyOtp(mobile, otp);
+      await authApi.forgotPasswordVerify(mobile, code);
       setStep(3);
-      setPassword("");
-      setConfirmPassword("");
     } catch (err: any) {
-      setError(
-        err.error || err.detail || err.message || "کد وارد شده نامعتبر است.",
-      );
+      setError(err?.message || err?.error || "کد وارد شده اشتباه است.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  // =======================
-  // 🔴 اتصال به API: مرحله ۳ (ثبت رمز عبور جدید)
-  // =======================
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password !== confirmPassword) {
-      setError("رمز عبور و تکرار آن یکسان نیستند.");
+    if (newPassword.length < 6) {
+      setError("رمز عبور باید حداقل ۶ کاراکتر باشد.");
       return;
     }
-    if (!password || password.length < 4) {
-      setError("لطفاً یک رمز عبور معتبر (حداقل ۴ کاراکتر) وارد کنید.");
-      return;
-    }
-
     setIsLoading(true);
     setError("");
-
     try {
-      await authApi.resetPassword({ phone_number: mobile, password });
-      // پس از تغییر موفق رمز عبور، کاربر را به صفحه لاگین منتقل می‌کنیم
-      navigate("/login");
+      await authApi.forgotPasswordReset({
+        mobile,
+        code,
+        newPassword,
+        confirmPassword: newPassword,
+      });
+      // به جای alert، کاربر رو می‌فرستیم به مرحله ۴
+      setStep(4);
     } catch (err: any) {
-      setError(
-        err.error || err.detail || err.message || "خطا در تغییر رمز عبور.",
-      );
+      setError(err?.message || err?.error || "خطا در تغییر رمز عبور.");
     } finally {
       setIsLoading(false);
     }
@@ -221,19 +190,30 @@ export const ForgotPassword = () => {
       className="h-screen w-full bg-white flex font-sans text-slate-800 overflow-hidden"
       dir="rtl"
     >
+      <style>{appleAnimations}</style>
+
+      {/* سمت راست: فرم */}
       <div className="w-full lg:w-1/2 h-full flex flex-col relative bg-white">
         <div className="w-full px-8 py-6 flex justify-between items-center shrink-0">
-          <div className="lg:hidden text-xl font-black text-slate-900 tracking-tight">
-            Menu<span className="text-orange-500">Jet</span>
-          </div>
-          <div className="hidden lg:block"></div>
-
+          <Link
+            to="/"
+            className="text-xl font-black text-slate-900 tracking-tight"
+          >
+            دیجی<span className="text-orange-500">منو</span>
+          </Link>
           <div className="flex items-center gap-3 text-sm font-bold">
+            <span className="text-slate-400 hidden sm:block font-medium">
+              به خاطر آوردید؟
+            </span>
             <Link
               to="/login"
-              className="text-slate-500 hover:text-slate-800 transition-colors flex items-center gap-1 bg-slate-50 hover:bg-slate-100 px-4 py-2 rounded-full"
+              className="text-orange-600 hover:text-orange-700 transition-colors flex items-center gap-0.5 group"
             >
-              <ArrowRight size={16} /> بازگشت به ورود
+              بازگشت به ورود
+              <ChevronLeft
+                size={16}
+                className="group-hover:-translate-x-0.5 transition-transform"
+              />
             </Link>
           </div>
         </div>
@@ -242,71 +222,67 @@ export const ForgotPassword = () => {
           className="flex-1 flex items-center justify-center px-6 overflow-y-auto"
           style={{ scrollbarWidth: "none" }}
         >
-          <div className="w-full max-w-[360px] flex flex-col pb-10">
-            <div className="mb-8">
-              <h1 className="text-3xl font-black text-slate-900 mb-2 tracking-tight">
-                بازیابی رمز عبور
-              </h1>
-              <p className="text-slate-500 text-sm font-medium">
-                برای تغییر رمز عبور، مراحل زیر را طی کنید.
-              </p>
-            </div>
+          <div className="w-full max-w-[350px] flex flex-col">
+            {/* عنوان هدر - فقط اگر در مراحل 1 تا 3 باشیم نمایش داده شود */}
+            {step !== 4 && (
+              <div className="mb-8 apple-fade-1">
+                <h1 className="text-3xl font-black text-slate-900 mb-2 tracking-tight">
+                  {step === 1
+                    ? "بازیابی رمز"
+                    : step === 2
+                      ? "تایید هویت"
+                      : "رمز جدید"}
+                </h1>
+                <p className="text-slate-500 text-sm font-medium">
+                  {step === 1
+                    ? "شماره موبایل ثبت‌شده خود را وارد کنید."
+                    : step === 2
+                      ? `کد پیامک شده به ${mobile} را وارد کنید.`
+                      : "رمز عبور جدید و امن برای حساب خود تنظیم کنید."}
+                </p>
+              </div>
+            )}
 
-            <div className="flex gap-2 mb-8">
-              {[1, 2, 3].map((s) => (
-                <div
-                  key={s}
-                  className={`h-1.5 flex-1 rounded-full transition-colors duration-500 ${
-                    step >= s ? "bg-slate-900" : "bg-slate-100"
-                  }`}
-                />
-              ))}
-            </div>
-
-            {error && (
-              <div className="w-full mb-6 p-3.5 rounded-xl bg-rose-50 text-rose-600 text-sm font-bold flex items-center gap-3 animate-in fade-in zoom-in-95">
+            {error && step !== 4 && (
+              <div className="w-full mb-6 p-3.5 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600 text-sm font-bold flex items-center gap-3 apple-fade-1">
                 <div className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0"></div>
                 {error}
               </div>
             )}
 
-            <form
-              className="w-full space-y-4"
-              onSubmit={
-                step === 1
-                  ? handleSendOTP
-                  : step === 2
-                    ? handleVerifyOTP
-                    : handleResetPassword
-              }
-            >
-              {/* === مرحله ۱: شماره موبایل === */}
-              {step === 1 && (
-                <div className="animate-in fade-in slide-in-from-left-4 duration-500 space-y-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 mb-1.5 ml-1">
-                      شماره موبایل
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-slate-400">
-                        <Phone size={18} />
-                      </div>
-                      <input
-                        type="tel"
-                        value={mobile}
-                        onChange={handleMobileChange}
-                        maxLength={11}
-                        placeholder="۰۹۱۲۳۴۵۶۷۸۹"
-                        className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl py-3.5 pr-11 pl-4 focus:outline-none focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10 transition-all dir-ltr text-left font-mono text-base placeholder:font-sans placeholder:text-right"
-                      />
+            {/* مرحله ۱ */}
+            {step === 1 && (
+              <form
+                className="w-full space-y-5 apple-fade-2"
+                onSubmit={handleRequestCode}
+              >
+                <div className="group">
+                  <label className="block text-xs font-bold text-slate-500 mb-2 mr-1 transition-colors group-focus-within:text-slate-800">
+                    شماره موبایل
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-slate-400 transition-colors duration-300 group-focus-within:text-orange-500">
+                      <Phone size={18} />
                     </div>
+                    <input
+                      type="tel"
+                      value={mobile}
+                      onChange={handleMobileChange}
+                      maxLength={11}
+                      placeholder="۰۹۱۲۳۴۵۶۷۸۹"
+                      className="w-full bg-slate-50/70 border border-slate-200/90 text-slate-900 rounded-2xl py-3.5 pr-11 pl-4 focus:outline-none focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10 transition-all duration-300 dir-ltr text-left font-mono text-base placeholder:font-sans placeholder:text-right placeholder:text-slate-400"
+                      autoFocus
+                    />
                   </div>
+                </div>
+
+                <div className="pt-2">
                   <button
                     type="submit"
                     disabled={mobile.length !== 11 || isLoading}
-                    className={`w-full mt-2 py-3.5 rounded-xl font-bold transition-all flex justify-center items-center gap-2 text-[15px] ${
+                    className={`group w-full py-4 rounded-2xl font-bold transition-all duration-300 flex justify-center items-center gap-2 text-[15px] ${
                       mobile.length === 11 && !isLoading
-                        ? "bg-slate-900 hover:bg-slate-800 text-white shadow-lg shadow-slate-900/20"
+                        ? "bg-slate-900 hover:bg-orange-500 text-white shadow-[0_10px_25px_rgba(15,23,42,0.15)] hover:shadow-[0_12px_30px_rgba(249,115,22,0.28)] hover:-translate-y-0.5 active:scale-[0.98]"
                         : "bg-slate-100 text-slate-400 cursor-not-allowed"
                     }`}
                   >
@@ -314,129 +290,137 @@ export const ForgotPassword = () => {
                       <Loader2 size={20} className="animate-spin" />
                     ) : (
                       <>
-                        دریافت کد تایید <ArrowLeft size={18} />
+                        <span>دریافت کد تایید</span>
+                        <ArrowRight
+                          size={18}
+                          className="rotate-180 transition-transform duration-300 group-hover:-translate-x-1"
+                        />
                       </>
                     )}
                   </button>
                 </div>
-              )}
+              </form>
+            )}
 
-              {/* === مرحله ۲: کد تایید === */}
-              {step === 2 && (
-                <div className="animate-in fade-in slide-in-from-left-4 duration-500 space-y-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 mb-1.5 ml-1">
-                      کد ۶ رقمی
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-slate-400">
-                        <KeyRound size={18} />
-                      </div>
-                      <input
-                        type="tel"
-                        value={otp}
-                        onChange={handleOtpChange}
-                        maxLength={6}
-                        placeholder="- - - - - -"
-                        className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl py-3.5 pr-11 pl-4 focus:outline-none focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10 transition-all text-center tracking-[1em] font-mono text-xl"
-                      />
+            {/* مرحله ۲ */}
+            {step === 2 && (
+              <form
+                className="w-full space-y-5 apple-fade-2"
+                onSubmit={handleVerifyCode}
+              >
+                <div className="group">
+                  <label className="block text-xs font-bold text-slate-500 mb-2 mr-1 transition-colors group-focus-within:text-slate-800">
+                    کد پیامک شده
+                  </label>
+                  <input
+                    type="tel"
+                    value={code}
+                    onChange={handleCodeChange}
+                    maxLength={6}
+                    placeholder="12345"
+                    className="w-full bg-slate-50/70 border border-slate-200/90 text-slate-900 rounded-2xl py-3.5 px-4 focus:outline-none focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10 transition-all duration-300 dir-ltr text-center font-mono text-xl tracking-[0.5em] placeholder:font-sans placeholder:tracking-normal placeholder:text-sm placeholder:text-slate-400"
+                    autoFocus
+                  />
+                </div>
+
+                <div className="pt-2 flex flex-col gap-3">
+                  <button
+                    type="submit"
+                    disabled={!code || isLoading}
+                    className={`group w-full py-4 rounded-2xl font-bold transition-all duration-300 flex justify-center items-center gap-2 text-[15px] ${
+                      code && !isLoading
+                        ? "bg-slate-900 hover:bg-orange-500 text-white shadow-[0_10px_25px_rgba(15,23,42,0.15)] hover:-translate-y-0.5 active:scale-[0.98]"
+                        : "bg-slate-100 text-slate-400 cursor-not-allowed"
+                    }`}
+                  >
+                    {isLoading ? (
+                      <Loader2 size={20} className="animate-spin" />
+                    ) : (
+                      "بررسی کد"
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStep(1)}
+                    className="text-slate-400 hover:text-slate-700 text-xs font-bold text-center transition-colors"
+                  >
+                    اصلاح شماره موبایل
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* مرحله ۳ */}
+            {step === 3 && (
+              <form
+                className="w-full space-y-5 apple-fade-2"
+                onSubmit={handleResetPassword}
+              >
+                <div className="group">
+                  <label className="block text-xs font-bold text-slate-500 mb-2 mr-1 transition-colors group-focus-within:text-slate-800">
+                    رمز عبور جدید
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-slate-400 transition-colors duration-300 group-focus-within:text-emerald-500">
+                      <Lock size={18} />
                     </div>
-                  </div>
-                  <div className="flex gap-3 pt-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setStep(1);
-                        setError("");
-                      }}
-                      className="w-16 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 py-3.5 rounded-xl transition-all flex justify-center items-center shrink-0"
-                    >
-                      <ArrowRight size={18} />
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={otp.length !== 6 || isLoading}
-                      className={`flex-1 py-3.5 rounded-xl font-bold transition-all flex justify-center items-center gap-2 text-[15px] shadow-lg ${
-                        otp.length === 6 && !isLoading
-                          ? "bg-slate-900 hover:bg-slate-800 text-white shadow-slate-900/20"
-                          : "bg-slate-100 text-slate-400 cursor-not-allowed shadow-transparent"
-                      }`}
-                    >
-                      {isLoading ? (
-                        <Loader2 size={20} className="animate-spin" />
-                      ) : (
-                        "بررسی کد"
-                      )}
-                    </button>
+                    <input
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full bg-slate-50/70 border border-slate-200/90 text-slate-900 rounded-2xl py-3.5 pr-11 pl-4 focus:outline-none focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 transition-all duration-300 dir-ltr text-left font-mono text-base placeholder:text-right placeholder:font-sans placeholder:text-slate-400"
+                      autoFocus
+                    />
                   </div>
                 </div>
-              )}
 
-              {/* === مرحله ۳: تنظیم رمز عبور جدید === */}
-              {step === 3 && (
-                <div className="animate-in fade-in slide-in-from-left-4 duration-500 space-y-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 mb-1.5 ml-1">
-                      رمز عبور جدید
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-slate-400">
-                        <Lock size={16} />
-                      </div>
-                      <input
-                        type="password"
-                        dir="ltr"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl py-3.5 pr-10 pl-3 focus:outline-none focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10 transition-all text-left text-base"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 mb-1.5 ml-1">
-                      تکرار رمز عبور
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-slate-400">
-                        <Lock size={16} />
-                      </div>
-                      <input
-                        type="password"
-                        dir="ltr"
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl py-3.5 pr-10 pl-3 focus:outline-none focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10 transition-all text-left text-base"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex gap-3 pt-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setStep(2);
-                        setError("");
-                      }}
-                      className="w-16 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 py-3.5 rounded-xl transition-all flex justify-center items-center shrink-0"
-                    >
-                      <ArrowRight size={18} />
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={isLoading || !password || !confirmPassword}
-                      className="flex-1 bg-slate-900 hover:bg-slate-800 text-white py-3.5 rounded-xl font-bold transition-all flex justify-center items-center gap-2 text-[15px] shadow-lg shadow-slate-900/20"
-                    >
-                      {isLoading ? (
-                        <Loader2 size={20} className="animate-spin" />
-                      ) : (
-                        "ذخیره و ورود"
-                      )}
-                    </button>
-                  </div>
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    disabled={newPassword.length < 6 || isLoading}
+                    className={`group w-full py-4 rounded-2xl font-bold transition-all duration-300 flex justify-center items-center gap-2 text-[15px] ${
+                      newPassword.length >= 6 && !isLoading
+                        ? "bg-slate-900 hover:bg-emerald-500 text-white shadow-[0_10px_25px_rgba(15,23,42,0.15)] hover:-translate-y-0.5 active:scale-[0.98]"
+                        : "bg-slate-100 text-slate-400 cursor-not-allowed"
+                    }`}
+                  >
+                    {isLoading ? (
+                      <Loader2 size={20} className="animate-spin" />
+                    ) : (
+                      "ثبت و ورود"
+                    )}
+                  </button>
                 </div>
-              )}
-            </form>
+              </form>
+            )}
+
+            {/* مرحله ۴ (پیام موفقیت) */}
+            {step === 4 && (
+              <div className="w-full flex flex-col items-center justify-center text-center space-y-6 apple-fade-1">
+                <div className="w-24 h-24 rounded-full bg-emerald-50 flex items-center justify-center border border-emerald-100 mb-2">
+                  <CheckCircle2
+                    size={48}
+                    className="text-emerald-500"
+                    strokeWidth={2}
+                  />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-black text-slate-900 mb-2 tracking-tight">
+                    رمز عبور تغییر یافت
+                  </h2>
+                  <p className="text-slate-500 text-sm font-medium">
+                    حالا می‌توانید با رمز عبور جدید وارد حساب کاربری خود شوید.
+                  </p>
+                </div>
+                <button
+                  onClick={() => navigate("/login")}
+                  className="w-full py-4 mt-2 rounded-2xl font-bold transition-all duration-300 flex justify-center items-center gap-2 text-[15px] bg-slate-900 hover:bg-emerald-500 text-white shadow-[0_10px_25px_rgba(15,23,42,0.15)] hover:shadow-[0_12px_30px_rgba(16,185,129,0.28)] active:scale-[0.98]"
+                >
+                  انتقال به صفحه ورود
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -445,3 +429,5 @@ export const ForgotPassword = () => {
     </div>
   );
 };
+
+export default ForgotPassword;
