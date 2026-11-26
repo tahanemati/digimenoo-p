@@ -62,4 +62,7 @@ urlpatterns = [
         TeamToggleActiveView.as_view(),
         name="team-toggle-active",
     ),
+    path("forgot-password/request/", ForgotPasswordRequestView.as_view(), name="forgot-password-request"),
+    path("forgot-password/verify/", ForgotPasswordVerifyView.as_view(), name="forgot-password-verify"),
+    path("forgot-password/reset/", ForgotPasswordResetView.as_view(), name="forgot-password-reset"),
 ]

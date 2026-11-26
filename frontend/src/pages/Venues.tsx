@@ -4,7 +4,7 @@ import {
   User,
   MapPin,
   Link2,
-  Map,
+  Navigation,
   AlertCircle,
   CheckCircle2,
   Clock,
@@ -30,6 +30,17 @@ export const Venues = () => {
 
         if (data && (data.id || data.Id || data.name || data.Name)) {
           setHasVenue(true);
+
+          const resolvedAddress =
+            data.address ||
+            data.Address ||
+            data.physicalAddress ||
+            data.physical_address ||
+            data.venueAddress ||
+            data.venue_address ||
+            data.location ||
+            "آدرس ثبت نشده";
+
           setVenueData({
             name: data.name || data.Name || "رستوران من",
             english_name: data.slug || data.Slug || data.english_name || "menu",
@@ -39,8 +50,8 @@ export const Venues = () => {
               data.OwnerName ||
               localStorage.getItem("user_name") ||
               "مدیر مجموعه",
-            owner_city: data.city || data.City || "ثبت نشده",
-            address: data.address || data.Address || "آدرس ثبت نشده",
+            owner_city: data.city || data.City || data.province || "ثبت نشده",
+            address: resolvedAddress,
             phone: data.phone || data.Phone || "ثبت نشده",
           });
         } else {
@@ -80,8 +91,8 @@ export const Venues = () => {
           شما هیچ مجموعه‌ای ندارید
         </h2>
         <p className="text-slate-500 mb-8 max-w-sm font-medium leading-relaxed text-[14px]">
-          برای استفاده از امکانات سیستم و مدیریت منو، ابتدا باید اطلاعات رستوران
-          یا کافه خود را ثبت کنید.
+          برای استفاده از امکانات سیستم ترنج و مدیریت منو، ابتدا باید اطلاعات
+          رستوران یا کافه خود را ثبت کنید.
         </p>
         <Link
           to="/setup-venue"
@@ -118,7 +129,7 @@ export const Venues = () => {
             مدیریت رستوران و شعبه
           </h1>
           <p className="text-slate-500 text-[13px] md:text-sm font-bold">
-            وضعیت درخواست و مشخصات مجموعه خود را اینجا پیگیری کنید.
+            وضعیت درخواست و مشخصات مجموعه خود در ترنج را اینجا پیگیری کنید.
           </p>
         </header>
 
@@ -251,7 +262,7 @@ export const Venues = () => {
 
             {/* --- خلاصه مشخصات --- */}
             <div className="bg-slate-50/80 border border-slate-100 rounded-[28px] md:rounded-[32px] p-6 md:p-8">
-              <div className="flex justify-between items-center mb-6 border-b border-slate-200/60 pb-4">
+              <div className="flex items-center mb-6 border-b border-slate-200/60 pb-4">
                 <h3 className="text-slate-800 font-black flex items-center gap-2 text-[16px] md:text-lg tracking-tight">
                   <Store
                     className="text-orange-500"
@@ -260,14 +271,6 @@ export const Venues = () => {
                   />{" "}
                   مشخصات رستوران
                 </h3>
-                {isApproved && (
-                  <Link
-                    to="/venue-settings"
-                    className="text-[11px] md:text-xs font-black text-slate-500 hover:text-slate-800 transition-colors bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm"
-                  >
-                    ویرایش مشخصات
-                  </Link>
-                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
@@ -345,7 +348,13 @@ export const Venues = () => {
 
                 {/* آدرس فیزیکی */}
                 <div className="flex gap-3 items-start md:col-span-2 lg:col-span-4 pt-2">
-                  <div className="w-10 h-10 rounded-[14px] bg-white border border-slate-200 flex items-center justify-center shrink-0 shadow-sm"></div>
+                  <div className="w-10 h-10 rounded-[14px] bg-white border border-slate-200 flex items-center justify-center shrink-0 shadow-sm">
+                    <Navigation
+                      className="text-orange-500"
+                      size={18}
+                      strokeWidth={2.5}
+                    />
+                  </div>
                   <div>
                     <div className="text-[11px] font-bold text-slate-400 mb-0.5">
                       آدرس فیزیکی مجموعه
@@ -371,12 +380,12 @@ export const Venues = () => {
                     </span>
                   </div>
                   <a
-                    href={`https://digimenoo.ir/${venueData?.english_name}`}
+                    href={`https://toranjmenu.ir/${venueData?.english_name}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-1.5 bg-orange-50 hover:bg-orange-500 text-orange-600 hover:text-white px-4 py-2.5 rounded-[14px] border border-orange-100 transition-colors font-mono font-black text-[14px] dir-ltr shrink-0 shadow-sm"
                   >
-                    <ChevronLeft size={16} strokeWidth={3} /> digimenoo.ir/
+                    <ChevronLeft size={16} strokeWidth={3} /> toranjmenu.ir/
                     {venueData?.english_name}
                   </a>
                 </div>

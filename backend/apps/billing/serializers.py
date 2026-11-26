@@ -34,6 +34,9 @@ class WalletTransactionSerializer(serializers.ModelSerializer):
 class SubscriptionPlanSerializer(serializers.ModelSerializer):
     durationMonths = serializers.IntegerField(source="duration_months")
     durationDays = serializers.IntegerField(source="duration_days")
+    price3m = serializers.SerializerMethodField()
+    price6m = serializers.SerializerMethodField()
+    price9m = serializers.SerializerMethodField()
     badgeText = serializers.CharField(source="badge_text")
     isPopular = serializers.BooleanField(source="is_popular")
     featuresList = serializers.SerializerMethodField()
@@ -42,16 +45,29 @@ class SubscriptionPlanSerializer(serializers.ModelSerializer):
         model = SubscriptionPlan
         fields = [
             "id",
+            "tier",
             "name",
             "durationMonths",
             "durationDays",
             "price",
+            "price3m",
+            "price6m",
+            "price9m",
             "description",
             "featuresList",
             "icon",
             "badgeText",
             "isPopular",
         ]
+
+    def get_price3m(self, obj):
+        return obj.get_price_for_months(3)
+
+    def get_price6m(self, obj):
+        return obj.get_price_for_months(6)
+
+    def get_price9m(self, obj):
+        return obj.get_price_for_months(9)
 
     def get_featuresList(self, obj):
         if not obj.features:
@@ -61,6 +77,7 @@ class SubscriptionPlanSerializer(serializers.ModelSerializer):
 
 class UserSubscriptionSerializer(serializers.ModelSerializer):
     planId = serializers.SerializerMethodField()
+    tier = serializers.SerializerMethodField()
     name = serializers.CharField(source="plan_name")
     planName = serializers.CharField(source="plan_name")
     totalDays = serializers.IntegerField(source="total_days")
@@ -73,6 +90,7 @@ class UserSubscriptionSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "planId",
+            "tier",
             "name",
             "planName",
             "totalDays",
@@ -83,3 +101,6 @@ class UserSubscriptionSerializer(serializers.ModelSerializer):
 
     def get_planId(self, obj):
         return str(obj.plan_id) if obj.plan_id else None
+
+    def get_tier(self, obj):
+        return obj.plan.tier if obj.plan else None

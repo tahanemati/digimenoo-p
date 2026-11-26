@@ -8,7 +8,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Loader2,
-  Map,
+  Navigation,
   Hash,
   Sparkles,
   Rocket,
@@ -41,6 +41,40 @@ const appleAnimations = `
   .apple-scale { animation: scaleIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
 `;
 
+// نشان هندسی اختصاصی برند ترنج
+const ToranjLogoMark: React.FC<{ className?: string }> = ({
+  className = "w-8 h-8",
+}) => (
+  <svg
+    viewBox="0 0 40 40"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className={className}
+  >
+    <rect width="40" height="40" rx="12" fill="url(#toranj_setup_grad)" />
+    <path
+      d="M20 7L24.2 15.8L33 20L24.2 24.2L20 33L15.8 24.2L7 20L15.8 15.8L20 7Z"
+      stroke="white"
+      strokeWidth="2.3"
+      strokeLinejoin="round"
+    />
+    <circle cx="20" cy="20" r="3.5" fill="white" />
+    <defs>
+      <linearGradient
+        id="toranj_setup_grad"
+        x1="0"
+        y1="0"
+        x2="40"
+        y2="40"
+        gradientUnits="userSpaceOnUse"
+      >
+        <stop stopColor="#EA580C" />
+        <stop offset="1" stopColor="#F97316" />
+      </linearGradient>
+    </defs>
+  </svg>
+);
+
 // =======================
 // پنل گرافیکی
 // =======================
@@ -64,11 +98,14 @@ const GraphicPanel = () => (
           <Store size={28} strokeWidth={2} />
         </div>
         <h2 className="text-3xl font-black text-slate-900 tracking-tight">
-          ثبت مجموعه در دیجی<span className="text-orange-500">منو</span>
+          ثبت مجموعه در <span className="text-orange-500">ترنج</span>
         </h2>
         <p className="text-slate-500 text-sm mt-2 font-medium leading-relaxed max-w-xs text-center">
-          شعبه دیجیتال و هوشمند رستوران خود را در کمتر از ۱ دقیقه راه‌اندازی
-          کنید.
+          شعبه دیجیتال و هوشمند رستوران خود را در کمتر از ۱ دقیقه روی{" "}
+          <span className="font-mono font-bold text-slate-600">
+            toranjmenu.ir
+          </span>{" "}
+          راه‌اندازی کنید.
         </p>
       </div>
 
@@ -99,7 +136,7 @@ const GraphicPanel = () => (
               اتصال یکپارچه به داشبورد
             </h4>
             <p className="text-xs text-slate-500 font-medium leading-relaxed">
-              پس از ثبت، تمام امکانات فروش و انبارداری برای شما فعال خواهد شد.
+              پس از ثبت، تمام امکانات فروش، رزرو میز و آشپزخانه فعال خواهد شد.
             </p>
           </div>
         </div>
@@ -206,7 +243,7 @@ export const SetupVenue = () => {
       localStorage.setItem("has_venue", "true");
 
       setSuccessData({
-        message: "مجموعه شما با موفقیت در پلتفرم دیجی‌منو ثبت شد.",
+        message: "مجموعه شما با موفقیت در پلتفرم ترنج ثبت شد.",
       });
 
       setStep(3);
@@ -235,9 +272,12 @@ export const SetupVenue = () => {
         <div className="w-full px-8 py-6 flex justify-between items-center shrink-0">
           <Link
             to="/"
-            className="text-xl font-black text-slate-900 tracking-tight"
+            className="flex items-center gap-2.5 text-xl font-black text-slate-900 tracking-tight"
           >
-            دیجی<span className="text-orange-500">منو</span>
+            <ToranjLogoMark className="w-8 h-8" />
+            <span>
+              ترن<span className="text-orange-500">ج</span>
+            </span>
           </Link>
 
           {step < 3 && (
@@ -347,7 +387,7 @@ export const SetupVenue = () => {
                               className="text-emerald-500 shrink-0"
                             />
                             <span className="truncate flex-1">
-                              digimenoo.ir/
+                              toranjmenu.ir/
                               {formData.slug || (
                                 <span className="text-emerald-300">
                                   yourname
@@ -456,7 +496,9 @@ export const SetupVenue = () => {
                           آدرس دقیق
                         </label>
                         <div className="relative">
-                          <div className="absolute inset-y-0 right-0 pr-4 flex items-center justify-center pointer-events-none text-slate-400 group-focus-within:text-orange-500 transition-colors"></div>
+                          <div className="absolute inset-y-0 right-0 pr-4 flex items-center justify-center pointer-events-none text-slate-400 group-focus-within:text-orange-500 transition-colors">
+                            <Navigation size={18} />
+                          </div>
                           <input
                             type="text"
                             placeholder="خیابان اصلی، کوچه..."
@@ -553,8 +595,8 @@ export const SetupVenue = () => {
                 تبریک! شعبه ساخته شد 🎉
               </h2>
               <p className="text-slate-500 text-sm font-medium leading-relaxed mb-10">
-                {successData?.message || "رستوران شما در سیستم ثبت شد."} الان
-                می‌توانید وارد پنل مدیریت شوید.
+                {successData?.message || "رستوران شما در سیستم ترنج ثبت شد."}{" "}
+                الان می‌توانید وارد پنل مدیریت شوید.
               </p>
 
               <button

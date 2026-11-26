@@ -12,26 +12,16 @@ import { VenueSettings } from "./pages/VenueSettings";
 import { Subscription } from "./pages/Subscription";
 import { QrCodes } from "./pages/QrCodes";
 import { KitchenPanel } from "./pages/KitchenPanel";
-import { LiveMenu } from "./pages/LiveMenu";
 import { ForgotPassword } from "./pages/ForgotPassword";
 import { CompleteProfile } from "./pages/CompleteProfile";
 import { TeamManagement } from "./pages/TeamManagement";
-import { OneDemo } from "./pages/demos/OneDemo";
-import { TwoDemo } from "./pages/demos/TwoDemo";
-import { ThreeDemo } from "./pages/demos/ThreeDemo";
-import { SidebarDemo } from "./pages/demos/SidebarDemo";
-import { LandingDemo } from "./pages/demos/LandingDemo";
-import { DarkStoryDemo } from "./pages/demos/DarkStoryDemo";
-import { SwipeDemo } from "./pages/demos/SwipeDemo";
-import { VintageDemo } from "./pages/demos/VintageDemo";
-import { OrbitalDemo } from "./pages/demos/OrbitalDemo";
-import { BentoDemo } from "./pages/demos/BentoDemo";
 import { ProductManagement } from "./pages/ProductManagement";
 import { ProtectedRoute } from "./components/ProtectedRoute";
-import { WaiterPanel } from "./pages/WaiterPanel";
 import { CustomerMenu } from "./pages/CustomerMenu";
 import FinancialReports from "./pages/FinancialReports";
 import TableReservations from "./pages/TableReservations";
+import Terms from "./pages/Terms";
+import Privacy from "./pages/Privacy";
 
 
 function App() {
@@ -39,21 +29,12 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Landing />} />
+        <Route path="/terms" element={<Terms />} />
+        <Route path="/privacy" element={<Privacy />} />
         <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/complete-profile" element={<CompleteProfile />} />
-
-        <Route path="/onedemo" element={<OneDemo />} />
-        <Route path="/twodemo" element={<TwoDemo />} />
-        <Route path="/threedemo" element={<ThreeDemo />} />
-        <Route path="/fourdemo" element={<SidebarDemo />} />
-        <Route path="/fivedemo" element={<LandingDemo />} />
-        <Route path="/sixdemo" element={<DarkStoryDemo />} />
-        <Route path="/sevendemo" element={<SwipeDemo />} />
-        <Route path="/eightdemo" element={<VintageDemo />} />
-        <Route path="/ninedemo" element={<OrbitalDemo />} />
-        <Route path="/tendemo" element={<BentoDemo />} />
         <Route path="/:slug" element={<CustomerMenu />} />
 
         <Route element={<ProtectedRoute />}>
@@ -61,25 +42,17 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/venues" element={<Venues />} />
             <Route path="/support" element={<Support />} />
-
-            {/* 🔴 روت کیف پول غیرفعال و به داشبورد ریدایرکت شد */}
-            {/* <Route path="/wallet" element={<Wallet />} /> */}
             <Route path="/wallet" element={<Wallet />} />
-
             <Route path="/venue-settings" element={<VenueSettings />} />
             <Route path="/subscription" element={<Subscription />} />
             <Route path="/qrcodes" element={<QrCodes />} />
             <Route path="/kitchen" element={<KitchenPanel />} />
-
-            {/* 🔴 روت مدیریت تیم غیرفعال و به داشبورد ریدایرکت شد */}
             <Route path="/team" element={<TeamManagement />} />
             <Route path="/financial-reports" element={<FinancialReports />} />
             <Route path="/reservations" element={<TableReservations />} />
-
             <Route path="/products" element={<ProductManagement />} />
           </Route>
           <Route path="/setup-venue" element={<SetupVenue />} />
-          <Route path="/waiter" element={<WaiterPanel />} />
         </Route>
       </Routes>
     </BrowserRouter>

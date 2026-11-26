@@ -1,0 +1,22 @@
+User-agent: *
+Allow: /
+Allow: /terms
+Allow: /privacy
+Allow: /register
+Allow: /login
+
+Disallow: /dashboard
+Disallow: /products
+Disallow: /qrcodes
+Disallow: /kitchen
+Disallow: /wallet
+Disallow: /venues
+Disallow: /venue-settings
+Disallow: /team
+Disallow: /subscription
+Disallow: /financial-reports
+Disallow: /reservations
+Disallow: /complete-profile
+Disallow: /setup-venue
+
+Sitemap: https://toranjmenu.ir/sitemap.xml

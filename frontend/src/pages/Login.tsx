@@ -37,6 +37,40 @@ const appleAnimations = `
   .apple-float-slow { animation: softFloat 6s ease-in-out infinite; }
 `;
 
+// نشان هندسی اختصاصی برند ترنج
+const ToranjLogoMark: React.FC<{ className?: string }> = ({
+  className = "w-8 h-8",
+}) => (
+  <svg
+    viewBox="0 0 40 40"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className={className}
+  >
+    <rect width="40" height="40" rx="12" fill="url(#toranj_login_grad)" />
+    <path
+      d="M20 7L24.2 15.8L33 20L24.2 24.2L20 33L15.8 24.2L7 20L15.8 15.8L20 7Z"
+      stroke="white"
+      strokeWidth="2.3"
+      strokeLinejoin="round"
+    />
+    <circle cx="20" cy="20" r="3.5" fill="white" />
+    <defs>
+      <linearGradient
+        id="toranj_login_grad"
+        x1="0"
+        y1="0"
+        x2="40"
+        y2="40"
+        gradientUnits="userSpaceOnUse"
+      >
+        <stop stopColor="#EA580C" />
+        <stop offset="1" stopColor="#F97316" />
+      </linearGradient>
+    </defs>
+  </svg>
+);
+
 // =======================
 // پنل گرافیکی (سمت چپ - خلوت و اصیل)
 // =======================
@@ -57,14 +91,17 @@ const GraphicPanel = () => (
     />
 
     <div className="relative z-10 w-full max-w-md flex flex-col gap-5 px-4">
-      {/* عنوان برند */}
-      <div className="mb-2 apple-fade-1">
-        <h2 className="text-3xl font-black text-slate-900 tracking-tight">
-          دیجی<span className="text-orange-500">منو</span>
-        </h2>
-        <p className="text-slate-500 text-sm mt-1.5 font-medium">
-          یکپارچه‌سازی منوی دیجیتال و اتوماسیون رستوران
-        </p>
+      {/* عنوان برند ترنج */}
+      <div className="mb-2 apple-fade-1 flex items-center gap-3.5">
+        <ToranjLogoMark className="w-12 h-12 shadow-lg shadow-orange-500/20" />
+        <div>
+          <h2 className="text-3xl font-black text-slate-900 tracking-tight leading-none">
+            ترن<span className="text-orange-500">ج</span>
+          </h2>
+          <p className="text-slate-500 text-xs mt-1.5 font-bold">
+            پلتفرم منوی دیجیتال هوشمند و اتوماسیون رستوران 
+          </p>
+        </div>
       </div>
 
       {/* کارت اصلی سفارشات زنده */}
@@ -270,9 +307,12 @@ export const Login = () => {
         <div className="w-full px-8 py-6 flex justify-between items-center shrink-0">
           <Link
             to="/"
-            className="text-xl font-black text-slate-900 tracking-tight"
+            className="flex items-center gap-2.5 text-xl font-black text-slate-900 tracking-tight"
           >
-            دیجی<span className="text-orange-500">منو</span>
+            <ToranjLogoMark className="w-8 h-8" />
+            <span>
+              ترن<span className="text-orange-500">ج</span>
+            </span>
           </Link>
           <div className="flex items-center gap-3 text-sm font-bold">
             <span className="text-slate-400 hidden sm:block font-medium">
@@ -302,7 +342,7 @@ export const Login = () => {
                 خوش آمدید
               </h1>
               <p className="text-slate-500 text-sm font-medium">
-                برای دسترسی به داشبورد رستوران خود وارد شوید.
+                برای دسترسی به داشبورد رستوران خود در ترنج وارد شوید.
               </p>
             </div>
 

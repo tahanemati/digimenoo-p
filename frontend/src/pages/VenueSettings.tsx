@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   Settings,
   Trash2,
@@ -11,7 +11,6 @@ import {
   BellRing,
   Loader2,
   Store,
-  Phone,
   Hash,
   ArrowLeft,
   ChefHat,
@@ -19,20 +18,63 @@ import {
   Languages,
   Save,
   Image as ImageIcon,
-  ArrowRight,
   AlertCircle,
   ChevronDown,
   Sparkles,
+  Copy,
+  Check,
+  Smartphone,
+  RefreshCw,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { venuesApi } from "../service/api";
 
-export const VenueSettings = () => {
-  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
+type SettingsTab = "general" | "features" | "branding";
+
+// صرفاً گرادیانت پس‌زمینه کارت در صورت نبود تصویر بندانگشتی (بدون هیچ برچسب متنی)
+const getTemplateSwatch = (code: string, index: number) => {
+  const numMatch = String(code || "").match(/\d+/);
+  const idx = numMatch ? parseInt(numMatch[0], 10) : index + 1;
+
+  const swatches = [
+    "from-orange-500 to-amber-400",
+    "from-[#431407] to-orange-500",
+    "from-[#0F4C5C] to-amber-400",
+    "from-slate-800 to-slate-500",
+    "from-[#09090B] via-[#1C1917] to-[#D4AF37]",
+    "from-[#4F6354] to-[#B86B35]",
+    "from-[#7A1632] to-[#E9A6B5]",
+    "from-[#141824] to-[#D92D20]",
+    "from-[#141414] to-[#C81E1E]",
+    "from-[#2F5E41] to-[#B85D3B]",
+    "from-[#09090F] via-[#00F0FF] to-[#FF2A85]",
+    "from-[#1D1D1F] to-[#0071E3]",
+    "from-[#09090D] via-[#1E202B] to-[#E5B869]",
+  ];
+
+  return swatches[(Math.max(1, idx) - 1) % swatches.length];
+};
+
+const normalizeThemeCode = (value: unknown, fallback = "template_1") => {
+  const cleaned = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+  if (!cleaned) return fallback;
+  if (/^\d+$/.test(cleaned)) return `template_${cleaned}`;
+  if (/^template\d+$/.test(cleaned)) {
+    return cleaned.replace(/^template(\d+)$/, "template_$1");
+  }
+  return cleaned;
+};
+
+export const VenueSettings: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<SettingsTab>("general");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isAlreadySetup, setIsAlreadySetup] = useState(false);
   const [pageError, setPageError] = useState("");
+  const [copiedLink, setCopiedLink] = useState(false);
 
   // اطلاعات نمایشی رستوران (Read-only)
   const [restaurantName, setRestaurantName] = useState("");
@@ -51,7 +93,7 @@ export const VenueSettings = () => {
 
   const [templates, setTemplates] = useState<any[]>([]);
   const [showAllTemplates, setShowAllTemplates] = useState(false);
-  const [stepOneErrors, setStepOneErrors] = useState({ desc: false });
+  const [descError, setDescError] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -60,7 +102,10 @@ export const VenueSettings = () => {
 
   const [showQRPopup, setShowQRPopup] = useState(false);
 
-  // ساخت آدرس کامل عکس از سرور جنگو
+  // وضعیت رفرش و لود شدن پیش‌نمایش زنده iframe
+  const [previewRefreshKey, setPreviewRefreshKey] = useState(0);
+  const [isIframeLoading, setIsIframeLoading] = useState(true);
+
   const getFullImageUrl = (url: string) => {
     if (!url) return "";
     if (
@@ -80,9 +125,9 @@ export const VenueSettings = () => {
         const response = await venuesApi.getMyVenue();
         const venueData = response?.data?.data || response?.data || response;
 
-        const fallbackTemplates = Array.from({ length: 15 }, (_, i) => ({
+        const fallbackTemplates = Array.from({ length: 13 }, (_, i) => ({
           code: `template_${i + 1}`,
-          name: `قالب منو ${i + 1}`,
+          name: `قالب منو ${(i + 1).toLocaleString("fa-IR")}`,
           thumbnailUrl: "",
         }));
 
@@ -94,10 +139,24 @@ export const VenueSettings = () => {
           console.warn("خطا در دریافت قالب‌ها، استفاده از لیست پیش‌فرض");
         }
 
-        const finalTemplates =
+        const rawTemplates =
           Array.isArray(templatesData) && templatesData.length > 0
             ? templatesData
             : fallbackTemplates;
+
+        const finalTemplates = rawTemplates.map((tpl: any, idx: number) => ({
+          ...tpl,
+          code: normalizeThemeCode(
+            tpl?.code || tpl?.Code || tpl?.slug || tpl?.id,
+            `template_${idx + 1}`,
+          ),
+          name:
+            tpl?.name ||
+            tpl?.Name ||
+            `قالب منو ${(idx + 1).toLocaleString("fa-IR")}`,
+          thumbnailUrl: tpl?.thumbnailUrl || tpl?.ThumbnailUrl || "",
+        }));
+
         setTemplates(finalTemplates);
 
         setRestaurantName(venueData.name || venueData.Name || "رستوران من");
@@ -133,7 +192,14 @@ export const VenueSettings = () => {
         );
         setIsBilingual(venueData.bilingual ?? venueData.Bilingual ?? false);
 
-        setTheme(venueData.theme || venueData.Theme || finalTemplates[0].code);
+        const savedTheme = normalizeThemeCode(
+          venueData.theme ||
+            venueData.Theme ||
+            venueData.template ||
+            venueData.templateCode,
+          finalTemplates[0]?.code || "template_1",
+        );
+        setTheme(savedTheme);
 
         const logo = venueData.logoUrl || venueData.LogoUrl || venueData.logo;
         if (logo) {
@@ -158,10 +224,22 @@ export const VenueSettings = () => {
     fetchData();
   }, []);
 
+  // هر بار که قالب یا رفرش تغییر کند، اسپینر لودینگ iframe نمایش داده شود
+  useEffect(() => {
+    setIsIframeLoading(true);
+  }, [englishName, theme, previewRefreshKey]);
+
+  const handleCopyMenuUrl = () => {
+    const url = `${window.location.origin}/${englishName}`;
+    navigator.clipboard?.writeText(url);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
+  };
+
   const handleFinalSubmit = async () => {
     if (!aboutUsFa.trim()) {
-      setStepOneErrors({ desc: true });
-      setCurrentStep(1);
+      setDescError(true);
+      setActiveTab("general");
       return;
     }
 
@@ -192,19 +270,26 @@ export const VenueSettings = () => {
         finalLogoUrl = "";
       }
 
+      const finalThemeCode = normalizeThemeCode(
+        theme,
+        templates[0]?.code || "template_1",
+      );
+
       // ۳. آپدیت برندینگ (قالب و مسیر نهایی لوگو)
       await venuesApi.updateBranding({
         logoUrl: finalLogoUrl,
-        theme:
-          theme || (templates.length > 0 ? templates[0].code : "template_1"),
+        theme: finalThemeCode,
       });
 
+      setTheme(finalThemeCode);
       setExistingLogoUrl(finalLogoUrl);
       setLogoFile(null);
       if (finalLogoUrl) {
         setLogoPreview(getFullImageUrl(finalLogoUrl));
       }
 
+      // رفرش خودکار iframe موبایل برای نمایش آخرین تغییرات ذخیره‌شده
+      setPreviewRefreshKey((prev) => prev + 1);
       setIsAlreadySetup(true);
       setShowQRPopup(true);
     } catch (err: any) {
@@ -212,35 +297,6 @@ export const VenueSettings = () => {
       alert(err.message || "خطا در ارتباط با سرور. لطفاً مجدداً تلاش کنید.");
     } finally {
       setIsSaving(false);
-    }
-  };
-
-  const handleStepSelect = (targetStep: 1 | 2 | 3) => {
-    if (targetStep > 1 && !aboutUsFa.trim()) {
-      setStepOneErrors({ desc: true });
-      setCurrentStep(1);
-      return;
-    }
-    setCurrentStep(targetStep);
-  };
-
-  const handleNextStep = () => {
-    if (currentStep === 1) {
-      if (!aboutUsFa.trim()) {
-        setStepOneErrors({ desc: true });
-        return;
-      }
-      setCurrentStep(isBilingual ? 2 : 3);
-    } else if (currentStep === 2) {
-      setCurrentStep(3);
-    }
-  };
-
-  const handlePrevStep = () => {
-    if (currentStep === 3) {
-      setCurrentStep(isBilingual ? 2 : 1);
-    } else if (currentStep === 2) {
-      setCurrentStep(1);
     }
   };
 
@@ -262,7 +318,7 @@ export const VenueSettings = () => {
 
   if (isLoading)
     return (
-      <div className="min-h-screen bg-slate-50 flex justify-center items-center">
+      <div className="min-h-screen bg-[#F5F5F7] flex justify-center items-center">
         <Loader2 className="animate-spin text-orange-500" size={40} />
       </div>
     );
@@ -270,7 +326,7 @@ export const VenueSettings = () => {
   if (pageError) {
     return (
       <div
-        className="min-h-screen bg-[#f4f7f9] flex flex-col justify-center items-center p-6"
+        className="min-h-screen bg-[#F5F5F7] flex flex-col justify-center items-center p-6"
         dir="rtl"
       >
         <div className="bg-white/90 backdrop-blur-2xl max-w-md w-full rounded-[36px] p-8 shadow-[0_20px_80px_rgba(0,0,0,0.08)] flex flex-col items-center text-center border border-white">
@@ -294,546 +350,732 @@ export const VenueSettings = () => {
     );
   }
 
-  const steps = [
-    {
-      id: 1 as const,
-      icon: Settings,
-      title: "تنظیمات پایه",
-      desc: "مشخصات و دسترسی‌ها",
-    },
-    ...(isBilingual
-      ? [
-          {
-            id: 2 as const,
-            icon: Languages,
-            title: "زبان بین‌المللی",
-            desc: "درباره ما به انگلیسی",
-          },
-        ]
-      : []),
-    {
-      id: 3 as const,
-      icon: Palette,
-      title: "هویت بصری",
-      desc: "قالب و لوگو",
-    },
-  ];
-
-  const IosToggle = ({ enabled, onClick, icon: Icon, title, desc }: any) => (
-    <div
-      onClick={onClick}
-      className="group flex flex-col sm:flex-row sm:items-center justify-between p-5 lg:p-6 transition-all duration-300 cursor-pointer hover:bg-slate-50"
-    >
-      <div className="flex gap-4 items-start sm:items-center mb-4 sm:mb-0">
-        <div
-          className={`w-12 h-12 lg:w-14 lg:h-14 rounded-2xl flex items-center justify-center shrink-0 transition-all shadow-sm ${enabled ? "bg-orange-50 text-orange-500 border border-orange-100" : "bg-white text-slate-400 border border-slate-200"}`}
-        >
-          <Icon size={24} strokeWidth={2} className="lg:w-6 lg:h-6 w-5 h-5" />
-        </div>
-        <div>
-          <h4 className="font-black text-[15px] lg:text-[16px] text-slate-800 mb-1">
-            {title}
-          </h4>
-          <p className="text-[12px] lg:text-[13px] font-bold text-slate-500 max-w-sm leading-relaxed">
-            {desc}
-          </p>
-        </div>
-      </div>
-      <div
-        className={`relative w-12 h-[30px] lg:w-14 lg:h-[34px] shrink-0 rounded-full flex items-center p-1 transition-all duration-300 ease-in-out border ${enabled ? "bg-emerald-500 border-emerald-500 shadow-[0_4px_12px_rgba(16,185,129,0.3)]" : "bg-slate-200 border-slate-200"}`}
-        dir="ltr"
-      >
-        <div
-          className={`w-5 h-5 lg:w-7 lg:h-7 bg-white rounded-full shadow-md transition-transform duration-300 ease-in-out ${enabled ? "translate-x-[18px] lg:translate-x-[20px]" : "translate-x-0"}`}
-        ></div>
-      </div>
-    </div>
-  );
-
   const displayedTemplates = showAllTemplates
     ? templates
     : templates.slice(0, 6);
 
+  // آدرس واقعی منو برای بارگذاری درون قاب گوشی (مثلاً http://localhost:5173/slug)
+  const livePreviewUrl = englishName
+    ? `${window.location.origin}/${englishName}?previewTheme=${encodeURIComponent(theme)}&v=${previewRefreshKey}`
+    : "";
+
+  const featureCards = [
+    {
+      key: "ordering",
+      enabled: isOrderingEnabled,
+      toggle: () => setIsOrderingEnabled(!isOrderingEnabled),
+      icon: ShoppingBag,
+      title: "سفارش‌دهی آنلاین سر میز",
+      desc: "مشتریان بدون نیاز به گارسون آیتم‌ها را به سبد خرید اضافه و ثبت می‌کنند.",
+    },
+    {
+      key: "bilingual",
+      enabled: isBilingual,
+      toggle: () => setIsBilingual(!isBilingual),
+      icon: Globe,
+      title: "منوی دو زبانه (فارسی / انگلیسی)",
+      desc: "نمایش دکمه تغییر زبان در منو برای مهمانان و گردشگران خارجی.",
+    },
+    {
+      key: "waiter",
+      enabled: isWaiterEnabled,
+      toggle: () => setIsWaiterEnabled(!isWaiterEnabled),
+      icon: BellRing,
+      title: "دکمه احضار سالن‌دار",
+      desc: "ارسال اعلان فوری به پنل گارسون با ذکر شماره میز مشتری.",
+    },
+    {
+      key: "chef",
+      enabled: isChefRequestEnabled,
+      toggle: () => setIsChefRequestEnabled(!isChefRequestEnabled),
+      icon: ChefHat,
+      title: "یادداشت اختصاصی به سرآشپز",
+      desc: "امکان ارسال پیام یا درخواست ویژه پخت مستقیماً به آشپزخانه.",
+    },
+  ];
+
   return (
     <div
-      className="min-h-screen bg-[#f4f7f9] font-sans text-slate-800 pb-8 relative overflow-x-hidden"
+      className="min-h-screen bg-[#F5F5F7] font-sans text-slate-800 pb-28 lg:pb-14 relative overflow-x-hidden"
       dir="rtl"
     >
-      <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-gradient-to-bl from-orange-300/15 to-transparent rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-gradient-to-tr from-emerald-300/10 to-transparent rounded-full blur-[120px] pointer-events-none" />
+      {/* هاله‌های نوری ملایم */}
+      <div className="absolute top-0 right-0 w-[650px] h-[650px] bg-gradient-to-bl from-orange-400/10 to-transparent rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-gradient-to-tr from-amber-300/10 to-transparent rounded-full blur-[110px] pointer-events-none" />
 
-      <div className="max-w-[1400px] mx-auto p-4 sm:p-6 md:p-10 relative z-10">
-        <header className="flex items-center gap-4 sm:gap-6 mb-8 md:mb-12 animate-in fade-in slide-in-from-top-4 duration-700">
-          <Link
-            to="/dashboard"
-            className="w-12 h-12 sm:w-14 sm:h-14 bg-white/80 backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white rounded-[20px] sm:rounded-[24px] flex items-center justify-center text-slate-500 hover:text-orange-500 hover:border-orange-100 hover:shadow-orange-500/10 transition-all active:scale-95 shrink-0"
-          >
-            <ChevronRight
-              size={24}
-              className="sm:w-7 sm:h-7"
-              strokeWidth={2.5}
-            />
-          </Link>
-          <div>
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-slate-900 mb-1 lg:mb-2">
-              {isAlreadySetup ? "تنظیمات مجموعه" : "راه‌اندازی دیجی‌منو"}
-            </h1>
-            <p className="text-slate-500 text-xs sm:text-sm font-bold">
-              شخصی‌سازی امکانات، ظاهر و اطلاعات رستوران شما در پلتفرم دیجی‌منو
-            </p>
+      <div className="max-w-[1480px] mx-auto p-4 sm:p-6 md:p-10 relative z-10">
+        {/* ================= هدر و دکمه ذخیره دائمی ================= */}
+        <header className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-7 animate-in fade-in slide-in-from-top-4 duration-500">
+          <div className="flex items-center gap-4">
+            <Link
+              to="/dashboard"
+              className="w-12 h-12 bg-white/90 backdrop-blur-xl shadow-2xs border border-white rounded-2xl flex items-center justify-center text-slate-500 hover:text-orange-500 transition-all active:scale-95 shrink-0"
+            >
+              <ChevronRight size={24} strokeWidth={2.5} />
+            </Link>
+            <div>
+              <div className="flex items-center gap-2.5">
+                <h1 className="text-2xl md:text-3xl font-black tracking-tight text-slate-900">
+                  {isAlreadySetup
+                    ? "تنظیمات و شخصی‌سازی منو"
+                    : "راه‌اندازی منو در ترنج"}
+                </h1>
+                <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-orange-50 border border-orange-200/70 text-orange-600 text-[11px] font-black">
+                  <Sparkles size={12} /> ترنج
+                </span>
+              </div>
+              <p className="text-slate-500 text-xs sm:text-sm font-bold mt-0.5">
+                نمونه واقعی منوی شما در قاب موبایل قابل مشاهده و تعامل است
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5">
+            <a
+              href={`/${englishName}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/80 px-4 py-3 rounded-2xl font-black text-xs sm:text-sm flex items-center gap-2 shadow-2xs transition-all"
+            >
+              <ExternalLink size={16} className="text-orange-500" />
+              <span>مشاهده منوی آنلاین</span>
+            </a>
+
+            <button
+              type="button"
+              disabled={isSaving || !theme}
+              onClick={handleFinalSubmit}
+              className="bg-slate-900 hover:bg-orange-500 disabled:bg-slate-300 text-white px-6 py-3 rounded-2xl font-black text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-slate-900/15 transition-all active:scale-95"
+            >
+              {isSaving ? (
+                <Loader2 className="animate-spin" size={18} />
+              ) : (
+                <Save size={17} strokeWidth={2.5} />
+              )}
+              <span>
+                {isAlreadySetup ? "ذخیره تغییرات" : "انتشار منو در ترنج"}
+              </span>
+            </button>
           </div>
         </header>
 
-        <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 items-start relative">
-          <div className="w-full lg:w-[340px] sticky top-4 lg:top-10 z-30 shrink-0 self-start">
-            <div className="flex flex-row lg:flex-col gap-3 lg:gap-4 overflow-x-auto lg:overflow-visible pb-2 lg:pb-0 hide-scrollbar snap-x snap-mandatory">
-              {steps.map((item) => {
-                const isActive = currentStep === item.id;
-                const isPast = currentStep > item.id;
+        {/* ================= گرید اصلی: استودیو تنظیمات + پیش‌نمایش واقعی موبایل ================= */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-7 items-start">
+          {/* ستون راست (۷ ستون): کارت هویت مجموعه + تب‌های تنظیمات */}
+          <div className="lg:col-span-7 space-y-6">
+            {/* کارت خلاصه اطلاعات مجموعه */}
+            <div className="bg-white/90 backdrop-blur-xl border border-white rounded-[30px] p-5 sm:p-6 shadow-[0_10px_35px_rgba(0,0,0,0.03)] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-4 min-w-0">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 text-white flex items-center justify-center shadow-lg shadow-orange-500/20 shrink-0 overflow-hidden">
+                  {logoPreview ? (
+                    <img
+                      src={logoPreview}
+                      alt={restaurantName}
+                      className="w-full h-full object-cover bg-white"
+                    />
+                  ) : (
+                    <Store size={26} />
+                  )}
+                </div>
+
+                <div className="min-w-0">
+                  <h2 className="text-lg sm:text-xl font-black text-slate-900 truncate">
+                    {restaurantName}
+                  </h2>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span
+                      className="text-xs font-mono font-bold text-orange-600 bg-orange-50 px-2.5 py-0.5 rounded-lg border border-orange-100 truncate"
+                      dir="ltr"
+                    >
+                      {window.location.host}/{englishName}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleCopyMenuUrl}
+                      title="کپی آدرس منو"
+                      className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
+                    >
+                      {copiedLink ? (
+                        <Check size={13} className="text-emerald-600" />
+                      ) : (
+                        <Copy size={13} />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2.5 shrink-0 border-t sm:border-t-0 pt-3 sm:pt-0 border-slate-100">
+                <div className="bg-slate-50 border border-slate-200/70 px-3.5 py-2 rounded-2xl text-center">
+                  <span className="block text-[10px] font-bold text-slate-400">
+                    شماره تماس
+                  </span>
+                  <span
+                    className="font-mono text-xs font-black text-slate-800"
+                    dir="ltr"
+                  >
+                    {phone}
+                  </span>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-200/70 px-3.5 py-2 rounded-2xl text-center">
+                  <span className="block text-[10px] font-bold text-slate-400">
+                    تعداد میز
+                  </span>
+                  <span className="text-xs font-black text-slate-800 flex items-center justify-center gap-1">
+                    <Hash size={12} className="text-orange-500" />
+                    {Number(tableCount || 0).toLocaleString("fa-IR")} میز
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* نوار تب‌های دسترسی سریع */}
+            <div className="bg-slate-200/70 p-1.5 rounded-[22px] grid grid-cols-3 gap-1.5 border border-white/80">
+              {[
+                {
+                  id: "general" as SettingsTab,
+                  label: "۱. معرفی و زبان‌ها",
+                  icon: Settings,
+                },
+                {
+                  id: "features" as SettingsTab,
+                  label: "۲. امکانات هوشمند",
+                  icon: Sparkles,
+                },
+                {
+                  id: "branding" as SettingsTab,
+                  label: "۳. لوگو و قالب منو",
+                  icon: Palette,
+                },
+              ].map((tab) => {
+                const isActive = activeTab === tab.id;
+                const TabIcon = tab.icon;
                 return (
-                  <div
-                    key={item.id}
-                    onClick={() => handleStepSelect(item.id)}
-                    className={`cursor-pointer min-w-[220px] lg:min-w-full flex items-center gap-4 p-4 lg:p-5 rounded-[24px] lg:rounded-[32px] transition-all duration-500 snap-center ${
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`py-3 px-2 sm:px-4 rounded-2xl text-xs sm:text-sm font-black flex items-center justify-center gap-2 transition-all ${
                       isActive
-                        ? "bg-white shadow-[0_20px_60px_rgba(0,0,0,0.06)] border border-white lg:scale-[1.02]"
-                        : "bg-white/40 lg:bg-transparent hover:bg-white/50 text-slate-500 border border-slate-200/50 lg:border-transparent backdrop-blur-md"
+                        ? "bg-white text-slate-900 shadow-sm"
+                        : "text-slate-500 hover:text-slate-800"
                     }`}
                   >
-                    <div
-                      className={`w-12 h-12 lg:w-16 lg:h-16 rounded-[18px] lg:rounded-[24px] flex items-center justify-center shrink-0 transition-all duration-500 ${
-                        isActive
-                          ? "bg-gradient-to-br from-orange-400 to-orange-500 text-white shadow-lg shadow-orange-500/30"
-                          : isPast
-                            ? "bg-emerald-50 text-emerald-500 border border-emerald-100"
-                            : "bg-white border border-slate-200 text-slate-400"
-                      }`}
-                    >
-                      {isPast ? (
-                        <CheckCircle2 size={24} strokeWidth={2.5} />
-                      ) : (
-                        <item.icon size={24} strokeWidth={isActive ? 2.5 : 2} />
-                      )}
-                    </div>
-                    <div>
-                      <h3
-                        className={`font-black text-[14px] lg:text-[17px] tracking-tight mb-0.5 lg:mb-1 ${isActive ? "text-slate-900" : ""}`}
-                      >
-                        {item.title}
-                      </h3>
-                      <p
-                        className={`text-[11px] lg:text-[13px] font-bold ${isActive ? "text-slate-500" : "text-slate-400"}`}
-                      >
-                        {item.desc}
-                      </p>
-                    </div>
-                  </div>
+                    <TabIcon
+                      size={16}
+                      className={isActive ? "text-orange-500" : ""}
+                    />
+                    <span className="truncate">{tab.label}</span>
+                  </button>
                 );
               })}
             </div>
-          </div>
 
-          <div className="flex-1 w-full bg-white/70 backdrop-blur-2xl rounded-[32px] lg:rounded-[48px] shadow-[0_30px_80px_rgba(0,0,0,0.03)] border border-white relative flex flex-col pb-[100px] lg:pb-0">
-            <div className="p-5 sm:p-8 md:p-14 flex-1 relative z-10">
-              {/* --- مرحله 1 --- */}
-              {currentStep === 1 && (
-                <div className="animate-in slide-in-from-left-8 fade-in duration-500">
-                  <div className="bg-slate-900 rounded-[28px] lg:rounded-[36px] p-6 lg:p-10 mb-8 lg:mb-14 text-white relative overflow-hidden shadow-2xl border border-slate-800">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/30 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/4 pointer-events-none"></div>
-
-                    <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6 lg:gap-8">
-                      <div>
-                        <div className="flex items-center gap-3 lg:gap-4 mb-3 lg:mb-4">
-                          <div className="w-12 h-12 lg:w-14 lg:h-14 bg-white/10 rounded-[18px] lg:rounded-[20px] backdrop-blur-md flex items-center justify-center border border-white/10 shrink-0">
-                            <Store
-                              className="text-orange-400"
-                              size={24}
-                              strokeWidth={2}
-                            />
-                          </div>
-                          <h2 className="text-2xl lg:text-3xl font-black tracking-tight text-white drop-shadow-md">
-                            {restaurantName}
-                          </h2>
-                        </div>
-                        <a
-                          href={`https://digimenoo.ir/${englishName}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 bg-black/30 hover:bg-black/50 transition-colors px-4 py-2.5 rounded-xl text-xs lg:text-sm font-mono font-bold text-orange-300 dir-ltr backdrop-blur-xl border border-white/5"
-                        >
-                          digimenoo.ir/{englishName} <ExternalLink size={14} />
-                        </a>
-                      </div>
-                      <div className="flex gap-6 lg:gap-8 lg:border-r border-t lg:border-t-0 border-white/10 pt-5 lg:pt-0 lg:pr-10">
-                        <div className="flex flex-col gap-1.5">
-                          <p className="text-slate-400 text-[10px] lg:text-[11px] font-black uppercase tracking-[0.2em]">
-                            Phone
-                          </p>
-                          <p className="font-mono font-black text-lg lg:text-xl dir-ltr text-white flex items-center gap-2">
-                            <Phone
-                              size={16}
-                              className="text-slate-400 hidden sm:block"
-                            />{" "}
-                            {phone}
-                          </p>
-                        </div>
-                        <div className="flex flex-col gap-1.5">
-                          <p className="text-slate-400 text-[10px] lg:text-[11px] font-black uppercase tracking-[0.2em]">
-                            Tables
-                          </p>
-                          <p className="font-black text-lg lg:text-xl flex items-center gap-1.5 text-white">
-                            <Hash size={18} className="text-orange-400" />{" "}
-                            {tableCount}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
+            {/* ================= محتوای تب ۱: معرفی و دوزبانه‌سازی ================= */}
+            {activeTab === "general" && (
+              <div className="bg-white/90 backdrop-blur-xl border border-white rounded-[32px] p-6 sm:p-8 shadow-[0_12px_40px_rgba(0,0,0,0.03)] space-y-6 animate-in fade-in duration-300">
+                <div>
+                  <div className="flex items-center justify-between mb-2.5">
+                    <label className="text-sm font-black text-slate-900 flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-orange-500" />
+                      معرفی و درباره مجموعه (فارسی)
+                    </label>
+                    <span className="text-[11px] font-bold text-slate-400">
+                      نمایش در بالای منوی مشتریان
+                    </span>
                   </div>
 
-                  <div className="space-y-10 lg:space-y-12">
-                    <div>
-                      <h3 className="text-lg lg:text-xl font-black text-slate-900 mb-4 lg:mb-5 flex items-center gap-3">
-                        <div className="w-1.5 lg:w-2 h-7 lg:h-8 bg-gradient-to-b from-orange-400 to-orange-500 rounded-full"></div>
-                        درباره مجموعه
-                      </h3>
-                      <textarea
-                        rows={5}
-                        placeholder="متنی جذاب برای معرفی کافه یا رستوران خود بنویسید..."
-                        value={aboutUsFa}
-                        onChange={(e) => {
-                          setAboutUsFa(e.target.value);
-                          setStepOneErrors({ desc: false });
-                        }}
-                        className={`w-full bg-white border-2 rounded-[24px] lg:rounded-[32px] p-5 lg:p-6 text-[14px] lg:text-[15px] font-bold text-slate-700 focus:outline-none transition-all resize-none placeholder:text-slate-300 shadow-sm ${
-                          stepOneErrors.desc
-                            ? "border-rose-400 bg-rose-50/30"
-                            : "border-slate-200/70 focus:border-orange-400 focus:shadow-[0_8px_30px_rgb(249,115,22,0.12)]"
-                        }`}
-                      ></textarea>
-                      {stepOneErrors.desc && (
-                        <p className="text-rose-500 text-xs lg:text-sm font-black mt-2 flex items-center gap-1.5">
-                          <AlertCircle size={16} /> نوشتن توضیحات الزامی است.
-                        </p>
-                      )}
-                    </div>
-
-                    <div>
-                      <h3 className="text-lg lg:text-xl font-black text-slate-900 mb-4 lg:mb-5 flex items-center gap-3">
-                        <div className="w-1.5 lg:w-2 h-7 lg:h-8 bg-gradient-to-b from-blue-400 to-blue-500 rounded-full"></div>
-                        امکانات هوشمند دیجی‌منو
-                      </h3>
-                      <div className="bg-white border border-slate-200/80 rounded-[28px] lg:rounded-[36px] overflow-hidden shadow-sm divide-y divide-slate-100">
-                        <IosToggle
-                          enabled={isOrderingEnabled}
-                          onClick={() =>
-                            setIsOrderingEnabled(!isOrderingEnabled)
-                          }
-                          icon={ShoppingBag}
-                          title="سفارش‌دهی آنلاین"
-                          desc="مشتریان می‌توانند بدون گارسون سفارش ثبت کنند."
-                        />
-                        <IosToggle
-                          enabled={isBilingual}
-                          onClick={() => setIsBilingual(!isBilingual)}
-                          icon={Globe}
-                          title="منوی دو زبانه (انگلیسی)"
-                          desc="پشتیبانی از زبان انگلیسی برای توریست‌ها."
-                        />
-                        <IosToggle
-                          enabled={isWaiterEnabled}
-                          onClick={() => setIsWaiterEnabled(!isWaiterEnabled)}
-                          icon={BellRing}
-                          title="سیستم احضار گارسون"
-                          desc="دکمه درخواست گارسون از روی میز."
-                        />
-                        <IosToggle
-                          enabled={isChefRequestEnabled}
-                          onClick={() =>
-                            setIsChefRequestEnabled(!isChefRequestEnabled)
-                          }
-                          icon={ChefHat}
-                          title="درخواست اختصاصی از آشپز"
-                          desc="امکان ثبت یادداشت متنی برای پخت."
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* --- مرحله 2 --- */}
-              {currentStep === 2 && isBilingual && (
-                <div className="animate-in slide-in-from-left-8 fade-in duration-500">
-                  <h3 className="text-xl lg:text-2xl font-black text-slate-900 mb-6 lg:mb-8 tracking-tight">
-                    اطلاعات بین‌المللی (English)
-                  </h3>
-                  <div className="bg-blue-50/80 border border-blue-100 rounded-[24px] lg:rounded-[32px] p-6 lg:p-8 mb-8 lg:mb-10 flex gap-4 lg:gap-6 items-center shadow-inner">
-                    <div className="w-14 h-14 lg:w-16 lg:h-16 bg-white text-blue-500 rounded-[20px] lg:rounded-[24px] shadow-sm border border-blue-100 flex items-center justify-center shrink-0">
-                      <Globe size={28} strokeWidth={2} />
-                    </div>
-                    <div>
-                      <h4 className="font-black text-blue-950 mb-1 lg:mb-2 text-lg lg:text-xl">
-                        International Profile
-                      </h4>
-                      <p className="text-[12px] lg:text-[14px] font-bold text-blue-800/80 leading-relaxed max-w-lg">
-                        این متون فقط هنگام تغییر زبان به انگلیسی نمایش داده
-                        می‌شوند.
-                      </p>
-                    </div>
-                  </div>
-                  <label className="block text-[13px] lg:text-[15px] font-black text-slate-800 mb-3 dir-ltr text-left">
-                    About Us (Description)
-                  </label>
                   <textarea
-                    dir="ltr"
-                    rows={6}
-                    placeholder="Welcome to our restaurant..."
-                    value={aboutUsEn}
-                    onChange={(e) => setAboutUsEn(e.target.value)}
-                    className="w-full bg-white border-2 border-slate-200/70 rounded-[24px] lg:rounded-[32px] p-5 lg:p-6 text-[14px] lg:text-[15px] font-medium text-slate-700 focus:outline-none transition-all resize-none focus:border-blue-400 focus:shadow-[0_8px_30px_rgb(59,130,246,0.12)] text-left shadow-sm"
-                  ></textarea>
+                    rows={4}
+                    placeholder="مثلاً: با بهترین دانه‌های قهوه تخصصی و مواد اولیه تازه در فضایی دنج میزبان شما هستیم..."
+                    value={aboutUsFa}
+                    onChange={(e) => {
+                      setAboutUsFa(e.target.value);
+                      if (descError) setDescError(false);
+                    }}
+                    className={`w-full bg-slate-50/70 focus:bg-white border-2 rounded-2xl p-4 text-sm font-bold text-slate-800 outline-none transition-all resize-none leading-relaxed ${
+                      descError
+                        ? "border-rose-400 bg-rose-50/30"
+                        : "border-slate-200/80 focus:border-orange-500 focus:ring-4 focus:ring-orange-50"
+                    }`}
+                  />
+
+                  {descError && (
+                    <p className="text-rose-500 text-xs font-black mt-2 flex items-center gap-1.5">
+                      <AlertCircle size={15} /> نوشتن معرفی کوتاه مجموعه الزامی
+                      است.
+                    </p>
+                  )}
                 </div>
-              )}
 
-              {/* --- مرحله 3 (هویت بصری و انتخاب قالب) --- */}
-              {currentStep === 3 && (
-                <div className="animate-in slide-in-from-left-8 fade-in duration-500">
-                  <h3 className="text-xl lg:text-2xl font-black text-slate-900 mb-8 lg:mb-10 tracking-tight">
-                    هویت بصری و برندینگ
-                  </h3>
-
-                  <div className="mb-10 lg:mb-14">
-                    <h4 className="text-md lg:text-lg font-black text-slate-900 mb-4 lg:mb-5 flex items-center gap-3">
-                      <div className="w-1.5 lg:w-2 h-6 lg:h-7 bg-gradient-to-b from-purple-400 to-purple-500 rounded-full"></div>
-                      لوگوی مجموعه
-                    </h4>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      ref={fileInputRef}
-                      onChange={handleLogoUpload}
-                    />
-                    <div className="flex flex-col sm:flex-row items-center gap-6 lg:gap-10 bg-white border border-slate-200/80 rounded-[28px] lg:rounded-[40px] p-6 lg:p-10 shadow-sm">
-                      {logoPreview ? (
-                        <div className="w-32 h-32 lg:w-40 lg:h-40 rounded-[24px] lg:rounded-[32px] bg-white border border-slate-200 shadow-sm p-2 lg:p-3 relative group overflow-hidden shrink-0">
-                          <img
-                            src={logoPreview}
-                            className="w-full h-full object-contain rounded-[18px] lg:rounded-[24px]"
-                            alt="Logo"
-                          />
-                          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all">
-                            <button
-                              type="button"
-                              onClick={handleRemoveLogo}
-                              className="text-white hover:text-rose-400 bg-white/10 p-3 rounded-2xl hover:bg-rose-500/20"
-                            >
-                              <Trash2 size={24} />
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div
-                          onClick={() => fileInputRef.current?.click()}
-                          className="w-32 h-32 lg:w-40 lg:h-40 rounded-[24px] lg:rounded-[32px] border-2 border-dashed border-slate-300 bg-slate-50 hover:bg-orange-50 hover:border-orange-400 transition-all flex flex-col items-center justify-center cursor-pointer shrink-0 text-slate-400 hover:text-orange-500"
-                        >
-                          <ImageIcon
-                            size={32}
-                            strokeWidth={1.5}
-                            className="mb-2 lg:mb-3"
-                          />
-                          <span className="text-[13px] font-black">
-                            انتخاب لوگو
-                          </span>
-                        </div>
-                      )}
-                      <div className="text-center sm:text-right">
-                        <h5 className="font-black text-slate-900 mb-2 text-lg">
-                          تصویر با کیفیت آپلود کنید
-                        </h5>
-                        <p className="text-[12px] lg:text-[14px] font-bold text-slate-500 leading-relaxed">
-                          فایل‌های مربعی (PNG) با پس‌زمینه شفاف بهترین نتیجه را
-                          دارند.
+                {/* باکس فعال‌سازی منوی دوزبانه */}
+                <div className="bg-slate-50/80 border border-slate-200/70 rounded-2xl p-4 sm:p-5">
+                  <div
+                    onClick={() => setIsBilingual(!isBilingual)}
+                    className="flex items-center justify-between gap-4 cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3.5">
+                      <div
+                        className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 transition-colors ${
+                          isBilingual
+                            ? "bg-blue-500 text-white shadow-md shadow-blue-500/20"
+                            : "bg-white text-slate-400 border border-slate-200"
+                        }`}
+                      >
+                        <Languages size={21} />
+                      </div>
+                      <div>
+                        <h4 className="font-black text-sm text-slate-900">
+                          پشتیبانی از زبان انگلیسی (منوی دوزبانه)
+                        </h4>
+                        <p className="text-xs font-bold text-slate-400 mt-0.5">
+                          فعال‌سازی نمایش توضیحات و نام محصولات به زبان انگلیسی
                         </p>
                       </div>
                     </div>
+
+                    <div
+                      dir="ltr"
+                      className={`w-12 h-7 rounded-full p-1 transition-colors flex items-center shrink-0 ${
+                        isBilingual
+                          ? "bg-emerald-500 justify-end"
+                          : "bg-slate-300 justify-start"
+                      }`}
+                    >
+                      <span className="w-5 h-5 rounded-full bg-white shadow-sm block" />
+                    </div>
                   </div>
 
-                  <div>
-                    <h4 className="text-md lg:text-lg font-black text-slate-900 mb-5 flex items-center gap-3">
-                      <div className="w-1.5 lg:w-2 h-6 lg:h-7 bg-gradient-to-b from-emerald-400 to-emerald-500 rounded-full"></div>
-                      انتخاب قالب منو{" "}
-                      <span className="text-xs bg-slate-100 text-slate-500 px-2 py-1 rounded-lg">
-                        ({templates.length} قالب)
-                      </span>
-                    </h4>
+                  {isBilingual && (
+                    <div className="mt-5 pt-5 border-t border-slate-200/70 animate-in fade-in duration-300">
+                      <label
+                        className="block text-xs font-black text-slate-600 mb-2 text-left"
+                        dir="ltr"
+                      >
+                        About Us (English Description)
+                      </label>
+                      <textarea
+                        dir="ltr"
+                        rows={3}
+                        placeholder="Welcome to our cafe & restaurant. Enjoy freshly brewed specialty coffee and artisanal dishes..."
+                        value={aboutUsEn}
+                        onChange={(e) => setAboutUsEn(e.target.value)}
+                        className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-2xl p-4 text-sm font-medium text-slate-800 outline-none resize-none text-left leading-relaxed"
+                      />
+                    </div>
+                  )}
+                </div>
 
-                    {templates.length === 0 ? (
-                      <div className="text-center p-10 border-2 border-dashed border-slate-200 rounded-[28px] text-slate-400 font-black">
-                        در حال دریافت قالب‌ها...
+                <div className="pt-2 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!aboutUsFa.trim()) {
+                        setDescError(true);
+                        return;
+                      }
+                      setActiveTab("features");
+                    }}
+                    className="bg-slate-900 hover:bg-orange-500 text-white px-6 py-3 rounded-2xl font-black text-xs sm:text-sm flex items-center gap-2 transition-colors"
+                  >
+                    <span>مرحله بعد: امکانات هوشمند</span>
+                    <ArrowLeft size={16} />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ================= محتوای تب ۲: امکانات هوشمند سالن ================= */}
+            {activeTab === "features" && (
+              <div className="bg-white/90 backdrop-blur-xl border border-white rounded-[32px] p-6 sm:p-8 shadow-[0_12px_40px_rgba(0,0,0,0.03)] space-y-5 animate-in fade-in duration-300">
+                <div>
+                  <h3 className="text-lg font-black text-slate-900">
+                    امکانات تعاملی منوی مشتریان
+                  </h3>
+                  <p className="text-xs font-bold text-slate-400 mt-0.5">
+                    قابلیت‌های مورد نیاز سالن و سفارش‌گیری را فعال یا غیرفعال
+                    کنید
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {featureCards.map((item) => {
+                    const FeatureIcon = item.icon;
+                    return (
+                      <div
+                        key={item.key}
+                        onClick={item.toggle}
+                        className={`cursor-pointer rounded-[26px] p-5 border-2 transition-all flex flex-col justify-between gap-4 ${
+                          item.enabled
+                            ? "bg-orange-50/40 border-orange-500 shadow-sm"
+                            : "bg-slate-50/70 border-slate-200/70 hover:bg-white"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div
+                            className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 transition-colors ${
+                              item.enabled
+                                ? "bg-orange-500 text-white shadow-md shadow-orange-500/20"
+                                : "bg-white text-slate-400 border border-slate-200"
+                            }`}
+                          >
+                            <FeatureIcon size={21} />
+                          </div>
+
+                          <div
+                            dir="ltr"
+                            className={`w-11 h-6 rounded-full p-0.5 transition-colors flex items-center ${
+                              item.enabled
+                                ? "bg-emerald-500 justify-end"
+                                : "bg-slate-300 justify-start"
+                            }`}
+                          >
+                            <span className="w-5 h-5 rounded-full bg-white shadow-sm block" />
+                          </div>
+                        </div>
+
+                        <div>
+                          <h4 className="font-black text-sm text-slate-900 mb-1">
+                            {item.title}
+                          </h4>
+                          <p className="text-xs font-medium text-slate-500 leading-relaxed">
+                            {item.desc}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="pt-2 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("branding")}
+                    className="bg-slate-900 hover:bg-orange-500 text-white px-6 py-3 rounded-2xl font-black text-xs sm:text-sm flex items-center gap-2 transition-colors"
+                  >
+                    <span>مرحله بعد: لوگو و قالب منو</span>
+                    <ArrowLeft size={16} />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ================= محتوای تب ۳: لوگو و انتخاب قالب منو ================= */}
+            {activeTab === "branding" && (
+              <div className="bg-white/90 backdrop-blur-xl border border-white rounded-[32px] p-6 sm:p-8 shadow-[0_12px_40px_rgba(0,0,0,0.03)] space-y-8 animate-in fade-in duration-300">
+                {/* آپلود لوگو */}
+                <div>
+                  <h3 className="text-base font-black text-slate-900 mb-3 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-orange-500" />
+                    لوگوی اختصاصی مجموعه
+                  </h3>
+
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    ref={fileInputRef}
+                    onChange={handleLogoUpload}
+                  />
+
+                  <div className="flex flex-col sm:flex-row items-center gap-5 bg-slate-50/80 border border-slate-200/70 rounded-[26px] p-5">
+                    {logoPreview ? (
+                      <div className="w-24 h-24 rounded-2xl bg-white border border-slate-200 p-2 relative group overflow-hidden shrink-0 shadow-2xs">
+                        <img
+                          src={logoPreview}
+                          className="w-full h-full object-contain rounded-xl"
+                          alt="Logo"
+                        />
+                        <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            type="button"
+                            onClick={handleRemoveLogo}
+                            className="text-white bg-rose-500 p-2 rounded-xl"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
                       </div>
                     ) : (
-                      <>
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 lg:gap-6">
-                          {displayedTemplates.map((tpl) => {
-                            const isSelected = theme === tpl.code;
-                            return (
-                              <div
-                                key={tpl.code}
-                                onClick={() => setTheme(tpl.code)}
-                                className={`relative cursor-pointer rounded-[24px] lg:rounded-[36px] p-1.5 lg:p-2 transition-all duration-300 ${isSelected ? "bg-gradient-to-br from-slate-900 to-slate-800 shadow-2xl shadow-slate-900/25 scale-[1.02]" : "bg-white border-2 border-slate-100 hover:border-slate-300 hover:-translate-y-1"}`}
-                              >
-                                <div
-                                  className={`h-28 lg:h-32 rounded-[18px] lg:rounded-[24px] overflow-hidden flex flex-col items-center justify-center ${isSelected ? "shadow-inner border border-white/10" : "bg-slate-50 text-slate-300"}`}
-                                >
-                                  {tpl.thumbnailUrl ? (
-                                    <img
-                                      src={getFullImageUrl(tpl.thumbnailUrl)}
-                                      alt={tpl.name}
-                                      className="w-full h-full object-cover opacity-90 transition-opacity hover:opacity-100"
-                                    />
-                                  ) : (
-                                    <>
-                                      <Sparkles
-                                        size={28}
-                                        strokeWidth={1.5}
-                                        className={`mb-2 ${isSelected ? "text-white" : "text-slate-300"}`}
-                                      />
-                                      <div
-                                        className={`w-12 h-2 rounded-full ${isSelected ? "bg-white/30" : "bg-slate-200"}`}
-                                      ></div>
-                                    </>
-                                  )}
-                                </div>
-                                <div
-                                  className={`p-4 flex items-center justify-between ${isSelected ? "text-white" : "text-slate-800"}`}
-                                >
-                                  <span className="text-[13px] lg:text-[14px] font-black line-clamp-1">
-                                    {tpl.name}
-                                  </span>
-                                  {isSelected && (
-                                    <CheckCircle2
-                                      size={18}
-                                      className="text-white shrink-0 ml-1"
-                                    />
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-
-                        {templates.length > 6 && (
-                          <div className="mt-8 flex justify-center">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setShowAllTemplates(!showAllTemplates)
-                              }
-                              className="flex items-center gap-2 text-[14px] font-black text-orange-500 bg-orange-50 hover:bg-orange-100 border border-orange-200/50 px-6 py-3 rounded-2xl transition-all active:scale-95"
-                            >
-                              {showAllTemplates
-                                ? "نمایش کمتر"
-                                : "مشاهده همه قالب‌ها"}
-                              <ChevronDown
-                                size={20}
-                                className={`transition-transform duration-300 ${showAllTemplates ? "rotate-180" : ""}`}
-                              />
-                            </button>
-                          </div>
-                        )}
-                      </>
+                      <div
+                        onClick={() => fileInputRef.current?.click()}
+                        className="w-24 h-24 rounded-2xl border-2 border-dashed border-slate-300 bg-white hover:border-orange-400 transition-all flex flex-col items-center justify-center cursor-pointer shrink-0 text-slate-400 hover:text-orange-500"
+                      >
+                        <ImageIcon size={24} className="mb-1" />
+                        <span className="text-[11px] font-black">
+                          آپلود لوگو
+                        </span>
+                      </div>
                     )}
+
+                    <div className="text-center sm:text-right flex-1">
+                      <h4 className="font-black text-sm text-slate-900 mb-1">
+                        نشان تجاری کافه یا رستوران شما
+                      </h4>
+                      <p className="text-xs font-medium text-slate-500 leading-relaxed mb-3">
+                        تصویر مربعی با پس‌زمینه شفاف (PNG) در هدر منوی دیجیتال و
+                        کارت‌های سفارش بهترین نمایش را دارد.
+                      </p>
+                      <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="bg-white hover:bg-orange-50 text-slate-800 hover:text-orange-600 border border-slate-200 px-3.5 py-1.5 rounded-xl text-xs font-black transition-colors"
+                        >
+                          {logoPreview ? "تغییر تصویر لوگو" : "انتخاب فایل"}
+                        </button>
+                        {logoPreview && (
+                          <button
+                            type="button"
+                            onClick={handleRemoveLogo}
+                            className="text-rose-500 hover:bg-rose-50 px-3 py-1.5 rounded-xl text-xs font-bold transition-colors"
+                          >
+                            حذف لوگو
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
-              )}
-            </div>
 
-            <div className="fixed bottom-4 left-4 right-4 lg:static lg:bottom-auto lg:left-auto lg:right-auto bg-white/95 lg:bg-transparent backdrop-blur-2xl lg:backdrop-blur-none border border-slate-200 lg:border-none p-3 lg:p-8 flex items-center justify-between gap-3 lg:gap-4 mt-auto z-50 lg:z-20 rounded-[28px] lg:rounded-b-[48px] shadow-[0_15px_40px_rgba(0,0,0,0.12)] lg:shadow-none lg:border-t lg:border-slate-100">
-              {currentStep > 1 && (
-                <button
-                  type="button"
-                  onClick={handlePrevStep}
-                  className="w-14 lg:w-auto h-14 lg:h-auto px-0 lg:px-8 py-0 lg:py-5 rounded-[20px] font-black transition-all flex items-center justify-center gap-3 text-slate-500 hover:text-slate-900 bg-slate-100 lg:bg-slate-100/50 hover:bg-slate-200 active:scale-95 shrink-0"
-                >
-                  <ArrowRight size={22} className="lg:m-0" />
-                  <span className="hidden lg:inline">بازگشت</span>
-                </button>
-              )}
+                {/* انتخاب قالب منو (بدون برچسب‌های ویژگی ظاهری) */}
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                      انتخاب قالب ظاهری منو
+                    </h3>
+                    <span className="text-xs font-black text-slate-400 bg-slate-100 px-2.5 py-1 rounded-lg">
+                      {templates.length.toLocaleString("fa-IR")} قالب آماده
+                    </span>
+                  </div>
 
-              {currentStep < 3 ? (
-                <button
-                  type="button"
-                  onClick={handleNextStep}
-                  className="flex-1 lg:flex-none h-14 lg:h-auto bg-slate-900 hover:bg-slate-800 text-white px-6 lg:px-10 py-0 lg:py-5 rounded-[20px] font-black transition-all flex items-center justify-center gap-3 shadow-xl shadow-slate-900/20 active:scale-95 lg:hover:-translate-y-1"
-                >
-                  <span className="text-[15px] lg:text-[16px]">مرحله بعد</span>{" "}
-                  <ArrowLeft size={22} />
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  disabled={isSaving || !theme}
-                  onClick={handleFinalSubmit}
-                  className="flex-1 lg:flex-none h-14 lg:h-auto bg-orange-500 hover:bg-orange-600 text-white px-6 lg:px-10 py-0 lg:py-5 rounded-[20px] font-black transition-all flex items-center justify-center gap-2 lg:gap-3 shadow-xl shadow-orange-500/25 active:scale-95 lg:hover:-translate-y-1 disabled:opacity-50 disabled:active:scale-100"
-                >
-                  {isSaving ? (
-                    <Loader2 className="animate-spin" size={24} />
-                  ) : (
-                    <>
-                      <Save
-                        size={22}
-                        strokeWidth={2.5}
-                        className="hidden sm:block"
-                      />
-                      <span className="text-[15px] lg:text-[16px]">
-                        {isAlreadySetup
-                          ? "ذخیره تغییرات"
-                          : "انتشار در دیجی‌منو"}
-                      </span>
-                    </>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5">
+                    {displayedTemplates.map((tpl, idx) => {
+                      const isSelected = theme === tpl.code;
+                      const swatch = getTemplateSwatch(tpl.code, idx);
+
+                      return (
+                        <div
+                          key={tpl.code}
+                          onClick={() => setTheme(tpl.code)}
+                          className={`cursor-pointer rounded-[24px] p-2.5 border-2 transition-all ${
+                            isSelected
+                              ? "bg-slate-900 text-white border-slate-900 shadow-lg scale-[1.02]"
+                              : "bg-white text-slate-800 border-slate-100 hover:border-orange-200"
+                          }`}
+                        >
+                          <div className="h-24 rounded-2xl overflow-hidden bg-slate-100 relative flex items-center justify-center mb-2.5">
+                            {tpl.thumbnailUrl ? (
+                              <img
+                                src={getFullImageUrl(tpl.thumbnailUrl)}
+                                alt={tpl.name}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div
+                                className={`w-full h-full bg-gradient-to-br ${swatch} p-3 flex flex-col justify-between`}
+                              >
+                                <span className="w-5 h-5 rounded-md bg-white/25 block" />
+                                <div className="space-y-1.5">
+                                  <span className="block h-1.5 w-2/3 bg-white/80 rounded-full" />
+                                  <span className="block h-1.5 w-1/2 bg-white/45 rounded-full" />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex items-center justify-between px-1">
+                            <span className="text-xs font-black truncate">
+                              {tpl.name}
+                            </span>
+                            {isSelected && (
+                              <CheckCircle2
+                                size={16}
+                                className="text-orange-400 shrink-0"
+                              />
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {templates.length > 6 && (
+                    <div className="mt-5 flex justify-center">
+                      <button
+                        type="button"
+                        onClick={() => setShowAllTemplates(!showAllTemplates)}
+                        className="flex items-center gap-1.5 text-xs font-black text-orange-600 bg-orange-50 hover:bg-orange-100 border border-orange-200/60 px-5 py-2.5 rounded-xl transition-colors"
+                      >
+                        <span>
+                          {showAllTemplates
+                            ? "نمایش قالب‌های منتخب"
+                            : `مشاهده همه ${templates.length.toLocaleString("fa-IR")} قالب`}
+                        </span>
+                        <ChevronDown
+                          size={16}
+                          className={`transition-transform duration-300 ${
+                            showAllTemplates ? "rotate-180" : ""
+                          }`}
+                        />
+                      </button>
+                    </div>
                   )}
-                </button>
-              )}
-            </div>
+                </div>
+
+                {/* دکمه ذخیره پایین فرم */}
+                <div className="pt-3 border-t border-slate-100 flex justify-end">
+                  <button
+                    type="button"
+                    disabled={isSaving || !theme}
+                    onClick={handleFinalSubmit}
+                    className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 disabled:bg-slate-200 text-white px-8 py-4 rounded-2xl font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-orange-500/25 transition-all active:scale-95"
+                  >
+                    {isSaving ? (
+                      <Loader2 className="animate-spin" size={20} />
+                    ) : (
+                      <>
+                        <Save size={18} />
+                        <span>
+                          {isAlreadySetup
+                            ? "ذخیره نهایی تنظیمات"
+                            : "انتشار منو در ترنج"}
+                        </span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
+
+          {/* ================= ستون چپ (۵ ستون): پیش‌نمایش زنده واقعی منو داخل قاب گوشی ================= */}
+          <aside className="lg:col-span-5 lg:sticky lg:top-8 flex flex-col items-center">
+            <div className="w-full max-w-[365px] flex items-center justify-between mb-3 px-2">
+              <span className="text-xs font-black text-slate-600 flex items-center gap-1.5">
+                <Smartphone size={15} className="text-orange-500" />
+                پیش‌نمایش واقعی منو
+              </span>
+
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setPreviewRefreshKey((prev) => prev + 1)}
+                  title="بارگذاری مجدد پیش‌نمایش"
+                  className="p-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-600 border border-slate-200/80 transition-colors"
+                >
+                  <RefreshCw
+                    size={13}
+                    className={
+                      isIframeLoading ? "animate-spin text-orange-500" : ""
+                    }
+                  />
+                </button>
+                <a
+                  href={`/${englishName}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="باز کردن در تب جدید"
+                  className="p-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-600 border border-slate-200/80 transition-colors"
+                >
+                  <ExternalLink size={13} />
+                </a>
+              </div>
+            </div>
+
+            {/* قاب گوشی با نمایش واقعی صفحه منو (iframe) */}
+            <div className="w-[335px] sm:w-[365px] bg-slate-900 rounded-[3.2rem] p-3 shadow-[0_30px_70px_rgba(15,23,42,0.18)] border-4 border-slate-800">
+              <div className="rounded-[2.4rem] overflow-hidden bg-white flex flex-col h-[660px] relative">
+                {/* نوار آدرس بالای مرورگر موبایل */}
+                <div className="bg-slate-950 text-white px-4 py-2.5 flex items-center justify-between text-[10px] font-mono shrink-0">
+                  <span className="flex items-center gap-1.5 text-emerald-400">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    LIVE
+                  </span>
+                  <span
+                    className="text-zinc-300 truncate max-w-[220px]"
+                    dir="ltr"
+                  >
+                    {window.location.host}/{englishName}
+                  </span>
+                </div>
+
+                {/* iframe واقعی صفحه منو */}
+                <div className="relative flex-1 w-full bg-[#F5F5F7]">
+                  {isIframeLoading && (
+                    <div className="absolute inset-0 z-10 bg-white/85 backdrop-blur-xs flex flex-col items-center justify-center gap-2">
+                      <Loader2
+                        size={28}
+                        className="animate-spin text-orange-500"
+                      />
+                      <span className="text-[11px] font-bold text-slate-500">
+                        در حال بارگذاری منوی واقعی...
+                      </span>
+                    </div>
+                  )}
+
+                  {livePreviewUrl && (
+                    <iframe
+                      key={`${englishName}-${theme}-${previewRefreshKey}`}
+                      src={livePreviewUrl}
+                      title={`پیش‌نمایش منوی ${restaurantName}`}
+                      onLoad={() => setIsIframeLoading(false)}
+                      className="w-full h-full border-0 block bg-white"
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+          </aside>
         </div>
       </div>
 
+      {/* مودال تایید ذخیره تنظیمات */}
       {showQRPopup && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xl flex items-center justify-center p-4 animate-in fade-in duration-300">
-          <div className="bg-white/95 backdrop-blur-2xl border border-white rounded-[32px] lg:rounded-[48px] p-8 md:p-12 w-full max-w-md text-center relative shadow-[0_30px_80px_rgba(0,0,0,0.15)] animate-in zoom-in-95">
+          <div className="bg-white/95 backdrop-blur-2xl border border-white rounded-[32px] lg:rounded-[44px] p-8 md:p-10 w-full max-w-md text-center relative shadow-2xl animate-in zoom-in-95">
             <button
               type="button"
               onClick={() => setShowQRPopup(false)}
-              className="absolute top-6 left-6 text-slate-400 hover:text-rose-500 bg-white hover:bg-rose-50 p-2.5 rounded-[16px] transition-colors shadow-sm border border-slate-100"
+              className="absolute top-6 left-6 text-slate-400 hover:text-rose-500 bg-slate-50 hover:bg-rose-50 p-2.5 rounded-2xl transition-colors"
             >
-              <X size={24} />
+              <X size={22} />
             </button>
-            <div className="w-28 h-28 lg:w-32 lg:h-32 bg-gradient-to-br from-emerald-400 to-emerald-500 text-white rounded-[28px] lg:rounded-[32px] flex items-center justify-center mx-auto mb-6 lg:mb-8 shadow-2xl shadow-emerald-500/30 rotate-12 border-4 border-white">
-              <CheckCircle2
-                className="-rotate-12"
-                size={56}
-                strokeWidth={2.5}
-              />
+
+            <div className="w-24 h-24 bg-gradient-to-br from-emerald-400 to-emerald-500 text-white rounded-[28px] flex items-center justify-center mx-auto mb-6 shadow-xl shadow-emerald-500/30 rotate-6 border-4 border-white">
+              <CheckCircle2 className="-rotate-6" size={48} strokeWidth={2.5} />
             </div>
-            <h3 className="text-2xl lg:text-3xl font-black text-slate-900 mb-4 tracking-tight">
-              تنظیمات ذخیره شد!
+
+            <h3 className="text-2xl font-black text-slate-900 mb-3 tracking-tight">
+              تنظیمات در ترنج ذخیره شد!
             </h3>
-            <p className="text-slate-500 font-bold leading-relaxed mb-8 text-[14px] lg:text-[15px]">
-              هویت بصری و تنظیمات پایه مجموعه بروزرسانی شد. اکنون برای تکمیل
-              دیجی‌منو خود، به بخش مدیریت محصولات بروید.
+            <p className="text-slate-500 font-bold leading-relaxed mb-8 text-sm">
+              هویت بصری و تنظیمات پایه مجموعه بروزرسانی شد. اکنون می‌توانید
+              محصولات منوی خود را مدیریت کنید.
             </p>
-            <div className="space-y-3 lg:space-y-4">
+
+            <div className="space-y-3">
+              <a
+                href={`/${englishName}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full bg-orange-500 hover:bg-orange-600 text-white py-4 rounded-2xl font-black flex justify-center items-center gap-2 shadow-lg transition-all"
+              >
+                <span>مشاهده منوی ذخیره شده</span>
+                <ExternalLink size={18} />
+              </a>
               <Link
                 to="/products"
-                className="w-full bg-slate-900 text-white py-4 lg:py-5 rounded-[20px] font-black flex justify-center items-center gap-2 shadow-xl shadow-slate-900/20 hover:-translate-y-1 transition-all"
+                className="w-full bg-slate-900 hover:bg-slate-800 text-white py-4 rounded-2xl font-black flex justify-center items-center gap-2 shadow-lg transition-all"
               >
-                مدیریت محصولات <ArrowLeft size={20} />
+                <span>مدیریت محصولات و منو</span>
+                <ArrowLeft size={18} />
               </Link>
               <Link
                 to="/dashboard"
-                className="w-full bg-white text-slate-600 border-2 border-slate-100 py-4 lg:py-5 rounded-[20px] font-black flex justify-center items-center hover:bg-slate-50 transition-all"
+                className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-4 rounded-2xl font-black flex justify-center items-center transition-all"
               >
                 بازگشت به داشبورد
               </Link>
@@ -841,11 +1083,6 @@ export const VenueSettings = () => {
           </div>
         </div>
       )}
-
-      <style>{`
-        .hide-scrollbar::-webkit-scrollbar { display: none; }
-        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-      `}</style>
     </div>
   );
 };

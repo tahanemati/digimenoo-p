@@ -176,6 +176,7 @@ export const authApi = {
     });
     return res.data;
   },
+
   forgotPasswordVerify: async (mobile: string, code: string) => {
     const res = await apiClient.post("/auth/forgot-password/verify/", {
       mobile,
@@ -183,7 +184,13 @@ export const authApi = {
     });
     return res.data;
   },
-  forgotPasswordReset: async (payload: any) => {
+
+  forgotPasswordReset: async (payload: {
+    mobile: string;
+    code: string;
+    newPassword: string;
+    confirmPassword?: string;
+  }) => {
     const res = await apiClient.post("/auth/forgot-password/reset/", payload);
     return res.data;
   },
@@ -452,9 +459,10 @@ export const subscriptionApi = {
     const res = await apiClient.get(`/billing/subscription/?_t=${Date.now()}`);
     return res.data;
   },
-  purchasePlan: async (planId: string) => {
-    const res = await apiClient.post("/billing/subscription/purchase/", {
+  purchasePlan: async (planId: string, durationMonths?: number) => {
+    const res = await apiClient.post("/subscriptions/purchase/", {
       planId,
+      durationMonths,
     });
     return res.data;
   },

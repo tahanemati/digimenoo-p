@@ -29,6 +29,41 @@ interface SidebarProps {
 
 type SidebarSegment = "operations" | "management";
 
+const ToranjLogoMark = ({
+  className = "w-10 h-10",
+}: {
+  className?: string;
+}) => (
+  <svg
+    viewBox="0 0 40 40"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className={className}
+  >
+    <rect width="40" height="40" rx="14" fill="url(#toranj_sidebar_grad)" />
+    <path
+      d="M20 7L24.2 15.8L33 20L24.2 24.2L20 33L15.8 24.2L7 20L15.8 15.8L20 7Z"
+      stroke="white"
+      strokeWidth="2.3"
+      strokeLinejoin="round"
+    />
+    <circle cx="20" cy="20" r="3.5" fill="white" />
+    <defs>
+      <linearGradient
+        id="toranj_sidebar_grad"
+        x1="0"
+        y1="0"
+        x2="40"
+        y2="40"
+        gradientUnits="userSpaceOnUse"
+      >
+        <stop stopColor="#EA580C" />
+        <stop offset="1" stopColor="#F97316" />
+      </linearGradient>
+    </defs>
+  </svg>
+);
+
 export const Sidebar = ({}: SidebarProps) => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -337,16 +372,22 @@ export const Sidebar = ({}: SidebarProps) => {
       {/* سایدبار دسکتاپ (Apple Glassmorphism) */}
       <aside className="hidden lg:flex fixed inset-y-6 right-6 z-50 w-[268px] bg-white/55 backdrop-blur-[40px] backdrop-saturate-[200%] border border-white/80 shadow-[0_20px_50px_rgba(0,0,0,0.06)] rounded-[34px] flex-col overflow-hidden">
         <div className="flex-1 flex flex-col p-5 relative z-10 overflow-y-auto hide-scrollbar">
-          {/* هدر برند */}
+          {/* هدر برند ترنج */}
           <div className="flex items-center justify-between mb-6 mt-1 px-1.5 shrink-0">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-slate-900 rounded-[14px] flex items-center justify-center shadow-md shadow-slate-900/15 shrink-0">
-                <Store className="text-white" size={20} strokeWidth={2.5} />
+            <Link to="/dashboard" className="flex items-center gap-3">
+              <ToranjLogoMark className="w-10 h-10 shadow-md shadow-orange-500/20 shrink-0" />
+              <div>
+                <span className="text-[21px] font-black text-slate-900 tracking-tight block leading-none">
+                  ترن<span className="text-orange-500">ج</span>
+                </span>
+                <span
+                  className="text-[10px] font-mono font-bold text-slate-400 tracking-wide block mt-1"
+                  dir="ltr"
+                >
+                  toranjmenu.ir
+                </span>
               </div>
-              <span className="text-[20px] font-black text-slate-900 tracking-tight">
-                Digi<span className="text-orange-500">Menoo</span>
-              </span>
-            </div>
+            </Link>
           </div>
 
           {/* سوئیچر iOS برای خلوت و تمیز ماندن منو */}

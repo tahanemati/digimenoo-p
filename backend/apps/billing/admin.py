@@ -86,19 +86,49 @@ class WalletTransactionAdmin(admin.ModelAdmin):
 class SubscriptionPlanAdmin(admin.ModelAdmin):
     list_display = (
         "name",
-        "duration_months",
-        "duration_days",
-        "formatted_price",
+        "tier",
+        "formatted_price_3m",
+        "formatted_price_6m",
+        "formatted_price_9m",
         "is_popular",
         "is_active",
         "sort_order",
     )
+    list_filter = ("tier", "is_popular", "is_active")
     list_editable = ("is_popular", "is_active", "sort_order")
     search_fields = ("name", "description")
+    fieldsets = (
+        (
+            "مشخصات اصلی پلن",
+            {
+                "fields": ("tier", "name", "description", "features"),
+            },
+        ),
+        (
+            "قیمت‌گذاری دوره‌های ۳، ۶ و ۹ ماهه (تومان)",
+            {
+                "fields": ("price_3m", "price_6m", "price_9m"),
+            },
+        ),
+        (
+            "ظاهر و نمایش در سایت",
+            {
+                "fields": ("icon", "badge_text", "is_popular", "is_active", "sort_order"),
+            },
+        ),
+    )
 
-    @admin.display(description="قیمت")
-    def formatted_price(self, obj):
-        return f"{obj.price:,} تومان"
+    @admin.display(description="۳ ماهه")
+    def formatted_price_3m(self, obj):
+        return f"{obj.get_price_for_months(3):,} تومان"
+
+    @admin.display(description="۶ ماهه")
+    def formatted_price_6m(self, obj):
+        return f"{obj.get_price_for_months(6):,} تومان"
+
+    @admin.display(description="۹ ماهه")
+    def formatted_price_9m(self, obj):
+        return f"{obj.get_price_for_months(9):,} تومان"
 
 
 @admin.register(UserSubscription)

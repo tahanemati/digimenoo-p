@@ -411,7 +411,7 @@ export const Dashboard = () => {
         <div className="relative z-10 bg-white/70 backdrop-blur-2xl border border-white shadow-[0_20px_60px_rgba(0,0,0,0.05)] rounded-[36px] md:rounded-[48px] p-6 md:p-12 w-full max-w-2xl flex flex-col animate-in zoom-in-95 duration-500">
           <div className="text-center mb-8 md:mb-10">
             <h1 className="text-[26px] md:text-4xl font-black text-slate-900 mb-2 md:mb-3 tracking-tight">
-              به <span className="text-orange-500">دیجی‌منو</span> خوش آمدید!
+              به <span className="text-orange-500">ترنج</span> خوش آمدید!
             </h1>
             <p className="text-slate-500 text-[13px] md:text-[15px] font-bold">
               برای دسترسی به پنل مدیریت، ابتدا اطلاعات زیر را تکمیل کنید:
@@ -605,7 +605,7 @@ export const Dashboard = () => {
                     {venueData?.name || "در حال دریافت..."}
                   </h3>
                   <p className="text-slate-500 text-[12px] md:text-[14px] font-black dir-ltr text-right opacity-80 line-clamp-1">
-                    digimenoo.ir/{venueData?.english_name || "..."}
+                    toranjmenu.ir/{venueData?.english_name || "..."}
                   </p>
                 </div>
               </div>
@@ -622,7 +622,7 @@ export const Dashboard = () => {
             </div>
             <div className="grid grid-cols-2 gap-3 md:gap-4 pt-4 md:pt-6 border-t border-slate-100/80">
               <a
-                href={`https://digimenoo.ir/${venueData?.english_name || ""}`}
+                href={`https://toranjmenu.ir/${venueData?.english_name || ""}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="bg-orange-50 hover:bg-orange-500 text-orange-600 hover:text-white px-3 md:px-5 py-3.5 md:py-4 rounded-[18px] md:rounded-[20px] font-black text-[12px] md:text-[14px] flex items-center justify-center gap-1.5 md:gap-2.5 transition-all active:scale-95 shadow-sm"

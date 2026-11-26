@@ -34,6 +34,40 @@ const appleAnimations = `
   .apple-float-slow { animation: softFloat 6s ease-in-out infinite; }
 `;
 
+// نشان هندسی اختصاصی برند ترنج
+const ToranjLogoMark: React.FC<{ className?: string }> = ({
+  className = "w-8 h-8",
+}) => (
+  <svg
+    viewBox="0 0 40 40"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className={className}
+  >
+    <rect width="40" height="40" rx="12" fill="url(#toranj_register_grad)" />
+    <path
+      d="M20 7L24.2 15.8L33 20L24.2 24.2L20 33L15.8 24.2L7 20L15.8 15.8L20 7Z"
+      stroke="white"
+      strokeWidth="2.3"
+      strokeLinejoin="round"
+    />
+    <circle cx="20" cy="20" r="3.5" fill="white" />
+    <defs>
+      <linearGradient
+        id="toranj_register_grad"
+        x1="0"
+        y1="0"
+        x2="40"
+        y2="40"
+        gradientUnits="userSpaceOnUse"
+      >
+        <stop stopColor="#EA580C" />
+        <stop offset="1" stopColor="#F97316" />
+      </linearGradient>
+    </defs>
+  </svg>
+);
+
 // =======================
 // پنل گرافیکی (سمت چپ)
 // =======================
@@ -55,14 +89,18 @@ const GraphicPanel = () => (
       <div className="mb-2 apple-fade-1">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-600 text-xs font-bold mb-3">
           <Sparkles size={13} />
-          <span>هوشمندسازی در ۳۰ ثانیه</span>
+          <span>هوشمندسازی در ۳۰ ثانیه با ترنج</span>
         </div>
         <h2 className="text-3xl font-black text-slate-900 tracking-tight">
-          ثبت‌نام مجموعه
+          ثبت‌نام مجموعه در <span className="text-orange-500">ترنج</span>
         </h2>
         <p className="text-slate-500 text-sm mt-1.5 font-medium leading-relaxed">
           تنها با وارد کردن شماره موبایل، رستوران یا کافه خود را به نسل جدید
-          منوهای دیجیتال متصل کنید.
+          منوهای دیجیتال در{" "}
+          <span className="font-mono font-bold text-slate-600">
+            toranjmenu.ir
+          </span>{" "}
+          متصل کنید.
         </p>
       </div>
 
@@ -78,7 +116,7 @@ const GraphicPanel = () => (
                   ایجاد پروفایل مجموعه
                 </h3>
                 <p className="text-xs text-slate-400 font-medium mt-0.5">
-                  آماده اتصال به پنل
+                  آماده اتصال به پنل ترنج
                 </p>
               </div>
             </div>
@@ -275,9 +313,12 @@ export const Register = () => {
         <div className="w-full px-8 py-6 flex justify-between items-center shrink-0">
           <Link
             to="/"
-            className="text-xl font-black text-slate-900 tracking-tight"
+            className="flex items-center gap-2.5 text-xl font-black text-slate-900 tracking-tight"
           >
-            دیجی<span className="text-orange-500">منو</span>
+            <ToranjLogoMark className="w-8 h-8" />
+            <span>
+              ترن<span className="text-orange-500">ج</span>
+            </span>
           </Link>
 
           <div className="flex items-center gap-3 text-sm font-bold">

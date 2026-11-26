@@ -90,15 +90,37 @@ class WalletTransaction(models.Model):
 
 
 class SubscriptionPlan(models.Model):
+    class Tier(models.TextChoices):
+        BASIC = "basic", "پایه (Basic)"
+        STANDARD = "standard", "استاندارد (Standard)"
+        PLUS = "plus", "پلاس (Plus)"
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tier = models.CharField(
+        max_length=20,
+        choices=Tier.choices,
+        default=Tier.BASIC,
+        verbose_name="سطح پلن",
+    )
     name = models.CharField(max_length=120, verbose_name="نام پلن")
     duration_months = models.PositiveIntegerField(
-        default=3, verbose_name="مدت اشتراک (ماه)"
+        default=3, verbose_name="مدت پیش‌فرض (ماه)"
     )
     duration_days = models.PositiveIntegerField(
-        default=90, verbose_name="مدت اعتبار (روز)"
+        default=90, verbose_name="مدت پیش‌فرض (روز)"
     )
-    price = models.PositiveBigIntegerField(verbose_name="قیمت (تومان)")
+    price = models.PositiveBigIntegerField(
+        default=0, verbose_name="قیمت پایه / ۳ ماهه (تومان)"
+    )
+    price_3m = models.PositiveBigIntegerField(
+        default=0, verbose_name="قیمت ۳ ماهه (تومان)"
+    )
+    price_6m = models.PositiveBigIntegerField(
+        default=0, verbose_name="قیمت ۶ ماهه (تومان)"
+    )
+    price_9m = models.PositiveBigIntegerField(
+        default=0, verbose_name="قیمت ۹ ماهه (تومان)"
+    )
     description = models.TextField(
         blank=True, default="", verbose_name="توضیحات کوتاه پلن"
     )
@@ -116,7 +138,7 @@ class SubscriptionPlan(models.Model):
         max_length=60,
         blank=True,
         default="",
-        verbose_name="متن برچسب (مثلاً: پیشنهاد ویژه)",
+        verbose_name="متن برچسب (مثلاً: محبوب‌ترین انتخاب)",
     )
     is_popular = models.BooleanField(
         default=False, verbose_name="پلن ویژه (هایلایت نارنجی)"
@@ -126,12 +148,32 @@ class SubscriptionPlan(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["sort_order", "duration_days", "price"]
+        ordering = ["sort_order", "price_3m", "price"]
         verbose_name = "پلن اشتراک"
         verbose_name_plural = "پلن‌های اشتراک"
 
+    def save(self, *args, **kwargs):
+        if self.price_3m == 0 and self.price > 0:
+            self.price_3m = self.price
+        elif self.price == 0 and self.price_3m > 0:
+            self.price = self.price_3m
+        super().save(*args, **kwargs)
+
+    def get_price_for_months(self, months: int) -> int:
+        if months == 3 and self.price_3m > 0:
+            return int(self.price_3m)
+        if months == 6 and self.price_6m > 0:
+            return int(self.price_6m)
+        if months == 9 and self.price_9m > 0:
+            return int(self.price_9m)
+        if self.duration_months == months and self.price > 0:
+            return int(self.price)
+        base_3m = self.price_3m if self.price_3m > 0 else self.price
+        multiplier = max(months // 3, 1)
+        return int(base_3m * multiplier)
+
     def __str__(self):
-        return f"{self.name} ({self.duration_months} ماهه - {self.price:,} تومان)"
+        return f"{self.name} ({self.get_tier_display()})"
 
 
 class UserSubscription(models.Model):

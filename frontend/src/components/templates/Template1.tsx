@@ -970,8 +970,9 @@ const Template1: React.FC<TemplateProps> = ({
               </span>
             </div>
           ) : (
-            <div className="bg-white/80 backdrop-blur-xl border border-black/[0.05] px-3.5 py-2 rounded-full text-[11px] font-bold text-[#86868B]">
-              DigiMenoo
+            <div className="bg-white/80 backdrop-blur-xl border border-black/[0.05] px-3.5 py-2 rounded-full text-[11px] font-bold text-[#86868B] flex items-center gap-1.5">
+              <Sparkles size={12} className="text-orange-500" />
+              <span>{isFa ? "ترنج" : "Toranj"}</span>
             </div>
           )}
 
@@ -1058,9 +1059,17 @@ const Template1: React.FC<TemplateProps> = ({
         </div>
 
         <div className="relative z-10 text-center pb-2">
-          <span className="text-[11px] font-bold text-[#86868B]">
-            Powered by DigiMenoo
-          </span>
+          <a
+            href="https://toranjmenu.ir"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#86868B] hover:text-orange-500 transition-colors"
+          >
+            <Sparkles size={12} className="text-orange-500" />
+            <span>
+              {isFa ? "قدرت‌گرفته از منوی دیجیتال ترنج" : "Powered by Toranj"}
+            </span>
+          </a>
         </div>
 
         {renderReservationModal()}

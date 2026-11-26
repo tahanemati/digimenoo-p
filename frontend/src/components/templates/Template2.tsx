@@ -742,8 +742,9 @@ const Template2: React.FC<TemplateProps> = ({
                   </span>
                 </div>
               ) : (
-                <span className="bg-white/[0.07] border border-white/10 px-3 py-1 rounded-full text-[11px] font-bold text-stone-300">
-                  DigiMenoo
+                <span className="bg-white/[0.07] border border-white/10 px-3 py-1 rounded-full text-[11px] font-bold text-stone-300 flex items-center gap-1.5">
+                  <Sparkles size={12} className="text-amber-400" />
+                  <span>{isFa ? "ترنج" : "Toranj"}</span>
                 </span>
               )}
 

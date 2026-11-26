@@ -5,6 +5,18 @@ import { customerApi } from "../service/api";
 import Template1 from "../components/templates/Template1";
 import Template2 from "../components/templates/Template2";
 import Template3 from "../components/templates/Template3";
+import Template4 from "../components/templates/Template4";
+import Template5 from "../components/templates/Template5";
+import Template6 from "../components/templates/Template6";
+import Template7 from "../components/templates/Template7";
+import Template8 from "../components/templates/Template8";
+import Template9 from "../components/templates/Template9";
+import Template10 from "../components/templates/Template10";
+import Template11 from "../components/templates/Template11";
+import Template12 from "../components/templates/Template12";
+import Template13 from "../components/templates/Template13";
+import Template14 from "../components/templates/Template14";
+import Template15 from "../components/templates/Template15";
 import type {
   CartItem,
   ActiveOrderInfo,
@@ -14,6 +26,18 @@ const TemplateRegistry: Record<string, React.FC<any>> = {
   template_1: Template1,
   template_2: Template2,
   template_3: Template3,
+  template_4: Template4,
+  template_5: Template5,
+  template_6: Template6,
+  template_7: Template7,
+  template_8: Template8,
+  template_9: Template9,
+  template_10: Template10,
+  template_11: Template11,
+  template_12: Template12,
+  template_13: Template13,
+  template_14: Template14,
+  template_15: Template15,
 };
 
 export const CustomerMenu = () => {

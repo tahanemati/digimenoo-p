@@ -4,7 +4,7 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.parsers import MultiPartParser, FormParser
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated , AllowAny
 from rest_framework.views import APIView
 
 from apps.accounts.models import User
@@ -29,6 +29,80 @@ DESTINATION_CARD = {
     "cardHolder": "زهرا محمدولی",
     "bankName": "بانک سامان",
 }
+
+
+def ensure_default_subscription_plans():
+    if SubscriptionPlan.objects.exists():
+        return
+
+    defaults = [
+        {
+            "tier": SubscriptionPlan.Tier.BASIC,
+            "name": "پایه",
+            "duration_months": 3,
+            "duration_days": 90,
+            "price": 450000,
+            "price_3m": 450000,
+            "price_6m": 800000,
+            "price_9m": 1100000,
+            "description": "شروعی عالی برای کافه‌ها و مجموعه‌های کوچک.",
+            "features": (
+                "ثبت تا ۵۰ آیتم منو\n"
+                "قالب منوی دیجیتال هوشمند\n"
+                "ساخت بارکد QR اختصاصی میزها\n"
+                "پشتیبانی آنلاین"
+            ),
+            "icon": "Package",
+            "badge_text": "",
+            "is_popular": False,
+            "sort_order": 1,
+        },
+        {
+            "tier": SubscriptionPlan.Tier.STANDARD,
+            "name": "استاندارد",
+            "duration_months": 3,
+            "duration_days": 90,
+            "price": 750000,
+            "price_3m": 750000,
+            "price_6m": 1400000,
+            "price_9m": 2000000,
+            "description": "ایده‌آل برای رستوران‌های رو به رشد با سفارش‌گیری زنده.",
+            "features": (
+                "ثبت آیتم و دسته‌بندی بی‌نهایت\n"
+                "شخصی‌سازی کامل رنگ، لوگو و قالب منو\n"
+                "سیستم رزرو آنلاین و وضعیت زنده میزها\n"
+                "درگاه پرداخت اختصاصی و کیف پول"
+            ),
+            "icon": "Store",
+            "badge_text": "محبوب‌ترین انتخاب",
+            "is_popular": True,
+            "sort_order": 2,
+        },
+        {
+            "tier": SubscriptionPlan.Tier.PLUS,
+            "name": "پلاس",
+            "duration_months": 3,
+            "duration_days": 90,
+            "price": 1200000,
+            "price_3m": 1200000,
+            "price_6m": 2200000,
+            "price_9m": 3100000,
+            "description": "امکانات کامل برای مجموعه‌های حرفه‌ای، صنعتی و شعب.",
+            "features": (
+                "تمامی امکانات پلن استاندارد\n"
+                "پنل زنده آشپزخانه (KDS) و مراحل پخت\n"
+                "تعریف نقش‌های پرسنل (صندوق‌دار، سرآشپز، گارسون)\n"
+                "گزارشات جامع مالی و چاپ صورت‌حساب رسمی"
+            ),
+            "icon": "Crown",
+            "badge_text": "کامل‌ترین بسته",
+            "is_popular": False,
+            "sort_order": 3,
+        },
+    ]
+
+    for item in defaults:
+        SubscriptionPlan.objects.create(**item)
 
 
 def get_or_create_user_wallet(user):
@@ -127,9 +201,11 @@ class WalletTopUpReceiptView(APIView):
 
 
 class SubscriptionPlanListView(APIView):
-    permission_classes = [IsAuthenticated]
+    authentication_classes = []
+    permission_classes = [AllowAny]
 
     def get(self, request):
+        ensure_default_subscription_plans()
         plans = SubscriptionPlan.objects.filter(is_active=True)
         serializer = SubscriptionPlanSerializer(plans, many=True)
         return api_success(serializer.data)
@@ -190,33 +266,53 @@ class PurchaseSubscriptionView(APIView):
 
         plan = get_object_or_404(SubscriptionPlan, id=plan_id, is_active=True)
 
+        raw_months = request.data.get("durationMonths")
+        if raw_months is not None and str(raw_months).strip() != "":
+            try:
+                duration_months = int(raw_months)
+            except (TypeError, ValueError):
+                return api_error("مدت زمان اشتراک نامعتبر است.")
+            if duration_months not in (3, 6, 9):
+                return api_error("مدت اشتراک فقط می‌تواند ۳، ۶ یا ۹ ماهه باشد.")
+        else:
+            duration_months = (
+                plan.duration_months if plan.duration_months in (3, 6, 9) else 3
+            )
+
+        charge_amount = plan.get_price_for_months(duration_months)
+        duration_days = duration_months * 30
+        plan_display_name = f"پلن {plan.name} ({duration_months} ماهه)"
+
+        if charge_amount <= 0:
+            return api_error("مبلغ این دوره برای پلن انتخاب‌شده تنظیم نشده است.")
+
         with transaction.atomic():
             wallet, _ = Wallet.objects.select_for_update().get_or_create(
                 user=request.user
             )
 
-            if wallet.balance < plan.price:
-                shortage = plan.price - wallet.balance
+            if wallet.balance < charge_amount:
+                shortage = charge_amount - wallet.balance
                 return api_error(
                     f"موجودی کیف پول شما کافی نیست (کمبود: {shortage:,} تومان). لطفاً ابتدا حساب خود را شارژ کنید.",
                     data={
                         "insufficientBalance": True,
-                        "requiredAmount": plan.price,
+                        "requiredAmount": charge_amount,
                         "currentBalance": wallet.balance,
                         "shortage": shortage,
                     },
                     status_code=status.HTTP_400_BAD_REQUEST,
                 )
 
-            wallet.balance -= plan.price
+            wallet.balance -= charge_amount
             wallet.save(update_fields=["balance", "updated_at"])
 
             tx = WalletTransaction.objects.create(
                 wallet=wallet,
-                amount=plan.price,
+                amount=charge_amount,
                 type=WalletTransaction.TxType.PAYMENT,
                 status=WalletTransaction.Status.SUCCESS,
-                description=f"خرید {plan.name} ({plan.duration_months} ماهه)",
+                description=f"خرید {plan_display_name}",
             )
 
             now = timezone.now()
@@ -224,27 +320,27 @@ class PurchaseSubscriptionView(APIView):
             if sub and sub.expire_date > now:
                 remaining_days = max(0, (sub.expire_date - now).days)
                 sub.plan = plan
-                sub.plan_name = plan.name
-                sub.expire_date = sub.expire_date + timedelta(days=plan.duration_days)
-                sub.total_days = remaining_days + plan.duration_days
+                sub.plan_name = plan_display_name
+                sub.expire_date = sub.expire_date + timedelta(days=duration_days)
+                sub.total_days = remaining_days + duration_days
                 sub.is_trial = False
                 sub.save()
             elif sub:
                 sub.plan = plan
-                sub.plan_name = plan.name
+                sub.plan_name = plan_display_name
                 sub.started_at = now
-                sub.expire_date = now + timedelta(days=plan.duration_days)
-                sub.total_days = plan.duration_days
+                sub.expire_date = now + timedelta(days=duration_days)
+                sub.total_days = duration_days
                 sub.is_trial = False
                 sub.save()
             else:
                 sub = UserSubscription.objects.create(
                     user=request.user,
                     plan=plan,
-                    plan_name=plan.name,
+                    plan_name=plan_display_name,
                     started_at=now,
-                    expire_date=now + timedelta(days=plan.duration_days),
-                    total_days=plan.duration_days,
+                    expire_date=now + timedelta(days=duration_days),
+                    total_days=duration_days,
                     is_trial=False,
                 )
 
@@ -258,5 +354,5 @@ class PurchaseSubscriptionView(APIView):
                 "walletBalance": wallet.balance,
                 "transaction": WalletTransactionSerializer(tx).data,
             },
-            message=f"{plan.name} با موفقیت فعال شد!",
+            message=f"{plan_display_name} با موفقیت فعال شد!",
         )

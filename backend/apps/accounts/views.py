@@ -56,6 +56,7 @@ def create_and_send_otp(mobile, purpose):
 
 
 class SendOTPView(APIView):
+    authentication_classes = []
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -73,6 +74,7 @@ class SendOTPView(APIView):
 
 
 class VerifyOTPView(APIView):
+    authentication_classes = []
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -120,6 +122,7 @@ class VerifyOTPView(APIView):
 
 
 class LoginView(APIView):
+    authentication_classes = []
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -198,14 +201,25 @@ class DashboardStatusView(APIView):
 
 
 class ForgotPasswordRequestView(APIView):
+    authentication_classes = []
     permission_classes = [AllowAny]
 
     def post(self, request):
         mobile = str(request.data.get("mobile", "")).strip()
-        if not User.objects.filter(mobile=mobile).exists():
+        if len(mobile) != 11 or not mobile.startswith("09"):
+            return api_error("شماره موبایل وارد شده معتبر نیست.")
+
+        user = User.objects.filter(mobile=mobile).first()
+        if not user:
             return api_error(
                 "کاربری با این شماره موبایل یافت نشد.",
                 status_code=status.HTTP_404_NOT_FOUND,
+            )
+
+        if not user.is_active:
+            return api_error(
+                "حساب کاربری شما غیرفعال شده است.",
+                status_code=status.HTTP_403_FORBIDDEN,
             )
 
         code = create_and_send_otp(mobile, OTPCode.Purpose.RESET)
@@ -216,11 +230,15 @@ class ForgotPasswordRequestView(APIView):
 
 
 class ForgotPasswordVerifyView(APIView):
+    authentication_classes = []
     permission_classes = [AllowAny]
 
     def post(self, request):
         mobile = str(request.data.get("mobile", "")).strip()
         code = str(request.data.get("code", "")).strip()
+
+        if not mobile or not code:
+            return api_error("شماره موبایل و کد تایید الزامی است.")
 
         otp_obj = (
             OTPCode.objects.filter(
@@ -236,19 +254,23 @@ class ForgotPasswordVerifyView(APIView):
             return api_error("کد بازیابی نامعتبر یا منقضی شده است.")
 
         otp_obj.is_verified = True
-        otp_obj.save()
+        otp_obj.save(update_fields=["is_verified"])
         return api_success({"verified": True}, message="کد تایید شد.")
 
 
 class ForgotPasswordResetView(APIView):
+    authentication_classes = []
     permission_classes = [AllowAny]
 
     def post(self, request):
         mobile = str(request.data.get("mobile", "")).strip()
         code = str(request.data.get("code", "")).strip()
-        new_password = (
-            request.data.get("newPassword") or request.data.get("password") or ""
-        )
+        new_password = str(
+            request.data.get("newPassword")
+            or request.data.get("new_password")
+            or request.data.get("password")
+            or ""
+        ).strip()
 
         if len(new_password) < 6:
             return api_error("رمز عبور جدید باید حداقل ۶ کاراکتر باشد.")
@@ -269,10 +291,10 @@ class ForgotPasswordResetView(APIView):
 
         user = get_object_or_404(User, mobile=mobile)
         user.set_password(new_password)
-        user.save()
+        user.save(update_fields=["password"])
 
         otp_obj.is_used = True
-        otp_obj.save()
+        otp_obj.save(update_fields=["is_used"])
         return api_success(message="رمز عبور با موفقیت تغییر کرد.")
 
 
