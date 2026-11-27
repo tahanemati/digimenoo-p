@@ -16,6 +16,7 @@ import {
   BarChart3,
   CalendarCheck,
   Crown,
+  Boxes,
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { authApi } from "../service/api";
@@ -161,6 +162,18 @@ export const Sidebar = ({}: SidebarProps) => {
       icon: Utensils,
       segment: "operations",
       allowedRoles: ["owner"],
+    },
+    {
+      id: "inventory",
+      path: "/inventory",
+      name: "انبارداری",
+      icon: Boxes,
+      segment: "operations",
+      allowedRoles: ["owner", "kitchen", "cashier"],
+      requiredFeature: "inventory",
+      requiredTier: "basic",
+      upgradeMessage:
+        "برای استفاده از سیستم انبارداری نیاز به اشتراک فعال دارید.",
     },
     {
       id: "qrcodes",
@@ -311,6 +324,17 @@ export const Sidebar = ({}: SidebarProps) => {
                           title: "مدیریت محصولات",
                           description:
                             "منوی دیجیتال خود را از اینجا بسازید. دسته‌بندی‌ها را تعریف کنید و غذاها را با عکس و قیمت اضافه کنید.",
+                          side: "left",
+                        },
+                      },
+                      {
+                        element: "#tour-inventory",
+                        onHighlightStarted: () =>
+                          setActiveSegment("operations"),
+                        popover: {
+                          title: "انبارداری و مواد اولیه",
+                          description:
+                            "مواد اولیه انبار را ثبت کنید و به محصولات وصل کنید تا با هر سفارش به‌صورت خودکار از موجودی انبار کسر شود.",
                           side: "left",
                         },
                       },

@@ -86,7 +86,11 @@ class ProductListCreateView(APIView):
                 "ابتدا مجموعه خود را ثبت کنید.",
                 status_code=status.HTTP_404_NOT_FOUND,
             )
-        products = Product.objects.filter(restaurant=restaurant).select_related("category")
+        products = (
+            Product.objects.filter(restaurant=restaurant)
+            .select_related("category")
+            .prefetch_related("ingredients__inventory_item")
+        )
         serializer = ProductSerializer(products, many=True)
         return api_success(serializer.data)
 
@@ -198,5 +202,9 @@ class PublicProductListView(APIView):
 
     def get(self, request, slug):
         restaurant = get_object_or_404(Restaurant, slug__iexact=slug)
-        products = Product.objects.filter(restaurant=restaurant).select_related("category")
+        products = (
+            Product.objects.filter(restaurant=restaurant)
+            .select_related("category")
+            .prefetch_related("ingredients__inventory_item")
+        )
         return api_success(ProductSerializer(products, many=True).data)

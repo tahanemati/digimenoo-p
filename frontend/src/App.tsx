@@ -16,6 +16,7 @@ import { ForgotPassword } from "./pages/ForgotPassword";
 import { CompleteProfile } from "./pages/CompleteProfile";
 import { TeamManagement } from "./pages/TeamManagement";
 import { ProductManagement } from "./pages/ProductManagement";
+import { Inventory } from "./pages/Inventory";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { CustomerMenu } from "./pages/CustomerMenu";
 import FinancialReports from "./pages/FinancialReports";
@@ -55,6 +56,20 @@ function App() {
               <Route path="/subscription" element={<Subscription />} />
               <Route path="/qrcodes" element={<QrCodes />} />
               <Route path="/products" element={<ProductManagement />} />
+
+              <Route
+                path="/inventory"
+                element={
+                  <FeatureGate
+                    feature="inventory"
+                    requiredTier="basic"
+                    title="سیستم انبارداری و مواد اولیه"
+                    description="مدیریت موجودی انبار و کسر خودکار مواد مصرفی با هر سفارش منو در تمامی پلن‌های فعال در دسترس است."
+                  >
+                    <Inventory />
+                  </FeatureGate>
+                }
+              />
 
               <Route
                 path="/reservations"

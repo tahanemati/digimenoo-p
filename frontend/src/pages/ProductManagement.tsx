@@ -22,9 +22,33 @@ import {
   Layers,
   EyeOff,
   Flame,
+  Boxes,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { menuApi, venuesApi } from "../service/api";
+import { inventoryApi, menuApi, venuesApi } from "../service/api";
+
+type ProductIngredient = {
+  id?: string;
+  inventoryItemId: string;
+  inventoryItemName?: string;
+  unit?: string;
+  unitLabel?: string;
+  quantityUsed: number;
+  currentStock?: number;
+};
+
+type InventoryOption = {
+  id: string;
+  name: string;
+  unit: string;
+  unitLabel: string;
+  currentStock: number;
+};
+
+type IngredientFormRow = {
+  inventoryItemId: string;
+  quantityUsed: string;
+};
 
 type Product = {
   id: string;
@@ -37,6 +61,7 @@ type Product = {
   imageUrl: string;
   stock?: number | null;
   isAvailableInMenu?: boolean;
+  ingredients?: ProductIngredient[];
 };
 
 type Category = {
@@ -63,6 +88,19 @@ const toEnglishDigits = (str: string) => {
     })
     .join("");
 };
+
+const toEnglishDecimal = (str: string) => {
+  const normalized = toEnglishDigits(str.replace(/[٫/]/g, ".")).replace(
+    /[^0-9.]/g,
+    "",
+  );
+  const parts = normalized.split(".");
+  if (parts.length <= 1) return normalized;
+  return `${parts[0]}.${parts.slice(1).join("")}`;
+};
+
+const formatNum = (val: number) =>
+  Number(val || 0).toLocaleString("fa-IR", { maximumFractionDigits: 3 });
 
 export const ProductManagement = () => {
   const [isLoading, setIsLoading] = useState(true);
@@ -93,6 +131,7 @@ export const ProductManagement = () => {
   const [pageError, setPageError] = useState("");
   const [isBilingual, setIsBilingual] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<InventoryOption[]>([]);
 
   // مودال دسته‌بندی
   const [catModal, setCatModal] = useState<{
@@ -120,6 +159,7 @@ export const ProductManagement = () => {
     imagePreview: string;
     imageFile: File | null;
     isAvailableInMenu: boolean;
+    ingredients: IngredientFormRow[];
   }>({
     nameFa: "",
     nameEn: "",
@@ -130,6 +170,7 @@ export const ProductManagement = () => {
     imagePreview: "",
     imageFile: null,
     isAvailableInMenu: true,
+    ingredients: [],
   });
 
   const prodImageRef = useRef<HTMLInputElement>(null);
@@ -168,18 +209,34 @@ export const ProductManagement = () => {
 
       let catsRes: any = [];
       let prodsRes: any = [];
+      let invRes: any = null;
 
-      try {
-        catsRes = await menuApi.getCategories();
-      } catch {
-        console.warn("دسته‌بندی‌ها دریافت نشد.");
-      }
-
-      try {
-        prodsRes = await menuApi.getProducts();
-      } catch {
-        console.warn("محصولات دریافت نشد.");
-      }
+      await Promise.all([
+        menuApi
+          .getCategories()
+          .then((res) => {
+            catsRes = res;
+          })
+          .catch(() => {
+            console.warn("دسته‌بندی‌ها دریافت نشد.");
+          }),
+        menuApi
+          .getProducts()
+          .then((res) => {
+            prodsRes = res;
+          })
+          .catch(() => {
+            console.warn("محصولات دریافت نشد.");
+          }),
+        inventoryApi
+          .getItems()
+          .then((res) => {
+            invRes = res;
+          })
+          .catch(() => {
+            console.warn("اقلام انبار دریافت نشد.");
+          }),
+      ]);
 
       const extractArray = (res: any) => {
         if (!res) return [];
@@ -192,6 +249,17 @@ export const ProductManagement = () => {
 
       const safeCats = extractArray(catsRes);
       const safeProds = extractArray(prodsRes);
+      const safeInvRaw = extractArray(invRes);
+
+      setInventoryItems(
+        safeInvRaw.map((item: any) => ({
+          id: String(item.id),
+          name: item.name || "",
+          unit: item.unit || "gram",
+          unitLabel: item.unitLabel || "",
+          currentStock: Number(item.currentStock ?? 0),
+        })),
+      );
 
       const mergedCategories: Category[] = safeCats.map((cat: any) => {
         const catId = String(cat.id || cat.Id || "").toLowerCase();
@@ -215,6 +283,21 @@ export const ProductManagement = () => {
           stock: p.stock ?? p.Stock ?? null,
           isAvailableInMenu:
             p.isAvailableInMenu !== false && p.IsAvailableInMenu !== false,
+          ingredients: Array.isArray(p.ingredients)
+            ? p.ingredients.map((ing: any) => ({
+                id: ing.id ? String(ing.id) : undefined,
+                inventoryItemId: String(
+                  ing.inventoryItemId || ing.inventory_item_id || "",
+                ),
+                inventoryItemName: ing.inventoryItemName || "",
+                unit: ing.unit || "",
+                unitLabel: ing.unitLabel || "",
+                quantityUsed: Number(
+                  ing.quantityUsed ?? ing.quantity_used ?? 0,
+                ),
+                currentStock: Number(ing.currentStock ?? 0),
+              }))
+            : [],
         }));
 
         return {
@@ -331,7 +414,6 @@ export const ProductManagement = () => {
 
     setUpdatingItemIds((prev) => ({ ...prev, [item.id]: true }));
 
-    // آپدیت آنی رابط کاربری (Optimistic Update)
     setCategories((prev) =>
       prev.map((cat) =>
         cat.id === item.categoryId
@@ -370,7 +452,6 @@ export const ProductManagement = () => {
           : `«${item.nameFa}» به‌عنوان ناموجود ثبت شد.`,
       );
     } catch (err: any) {
-      // بازگرداندن وضعیت در صورت خطای سرور
       setCategories((prev) =>
         prev.map((cat) =>
           cat.id === item.categoryId
@@ -556,6 +637,12 @@ export const ProductManagement = () => {
               : getFullImageUrl(prod.imageUrl || ""),
             imageFile: null,
             isAvailableInMenu: prod.isAvailableInMenu !== false,
+            ingredients: Array.isArray(prod.ingredients)
+              ? prod.ingredients.map((ing) => ({
+                  inventoryItemId: ing.inventoryItemId,
+                  quantityUsed: String(ing.quantityUsed ?? ""),
+                }))
+              : [],
           }
         : {
             nameFa: "",
@@ -567,6 +654,7 @@ export const ProductManagement = () => {
             imagePreview: "",
             imageFile: null,
             isAvailableInMenu: true,
+            ingredients: [],
           },
     );
 
@@ -578,6 +666,48 @@ export const ProductManagement = () => {
     });
   };
 
+  // مدیریت ردیف‌های مواد مصرفی از انبار در فرم محصول
+  const addIngredientRow = () => {
+    const usedIds = new Set(
+      prodForm.ingredients.map((row) => row.inventoryItemId),
+    );
+    const firstAvailable = inventoryItems.find((item) => !usedIds.has(item.id));
+    if (!firstAvailable) {
+      showToast(
+        "تمام کالاهای تعریف‌شده در انبار به این محصول اضافه شده‌اند.",
+        "error",
+      );
+      return;
+    }
+
+    setProdForm((prev) => ({
+      ...prev,
+      ingredients: [
+        ...prev.ingredients,
+        { inventoryItemId: firstAvailable.id, quantityUsed: "" },
+      ],
+    }));
+  };
+
+  const updateIngredientRow = (
+    index: number,
+    patch: Partial<IngredientFormRow>,
+  ) => {
+    setProdForm((prev) => ({
+      ...prev,
+      ingredients: prev.ingredients.map((row, idx) =>
+        idx === index ? { ...row, ...patch } : row,
+      ),
+    }));
+  };
+
+  const removeIngredientRow = (index: number) => {
+    setProdForm((prev) => ({
+      ...prev,
+      ingredients: prev.ingredients.filter((_, idx) => idx !== index),
+    }));
+  };
+
   const saveProduct = async () => {
     if (
       !prodForm.nameFa.trim() ||
@@ -585,6 +715,35 @@ export const ProductManagement = () => {
       !prodModal.categoryId
     )
       return;
+
+    // اعتبارسنجی ردیف‌های مواد اولیه انتخاب‌شده
+    const preparedIngredients: {
+      inventoryItemId: string;
+      quantityUsed: number;
+    }[] = [];
+    const seenInvIds = new Set<string>();
+
+    for (const row of prodForm.ingredients) {
+      if (!row.inventoryItemId) continue;
+      const qty = parseFloat(toEnglishDecimal(row.quantityUsed));
+      if (Number.isNaN(qty) || qty <= 0) {
+        const invName =
+          inventoryItems.find((i) => i.id === row.inventoryItemId)?.name ||
+          "ماده اولیه";
+        showToast(
+          `لطفاً مقدار مصرف «${invName}» را بزرگ‌تر از صفر وارد کنید یا ردیف آن را حذف نمایید.`,
+          "error",
+        );
+        return;
+      }
+      if (seenInvIds.has(row.inventoryItemId)) continue;
+      seenInvIds.add(row.inventoryItemId);
+      preparedIngredients.push({
+        inventoryItemId: row.inventoryItemId,
+        quantityUsed: qty,
+      });
+    }
+
     setIsSaving(true);
 
     try {
@@ -607,6 +766,7 @@ export const ProductManagement = () => {
         price: numericPrice,
         stock: numericStock,
         isAvailableInMenu: prodForm.isAvailableInMenu,
+        ingredients: preparedIngredients,
       };
 
       if (!prodForm.imagePreview && !prodForm.imageFile && prodModal.data) {
@@ -614,17 +774,38 @@ export const ProductManagement = () => {
       }
 
       let finalProductId = "";
+      let savedIngredients: ProductIngredient[] = preparedIngredients.map(
+        (ing) => {
+          const inv = inventoryItems.find((i) => i.id === ing.inventoryItemId);
+          return {
+            inventoryItemId: ing.inventoryItemId,
+            inventoryItemName: inv?.name || "",
+            unit: inv?.unit || "",
+            unitLabel: inv?.unitLabel || "",
+            quantityUsed: ing.quantityUsed,
+            currentStock: inv?.currentStock ?? 0,
+          };
+        },
+      );
       const previousCategoryId = prodModal.data?.categoryId;
 
       if (prodModal.data) {
-        await menuApi.updateProduct(prodModal.data.id, {
+        const updatedRes = await menuApi.updateProduct(prodModal.data.id, {
           ...payload,
           id: prodModal.data.id,
         });
+        const updatedObj = updatedRes?.data || updatedRes;
+        if (Array.isArray(updatedObj?.ingredients)) {
+          savedIngredients = updatedObj.ingredients;
+        }
         finalProductId = prodModal.data.id;
       } else {
         const createdRes = await menuApi.createProduct(payload);
-        finalProductId = String(createdRes?.data?.id || createdRes?.id || "");
+        const createdObj = createdRes?.data || createdRes;
+        if (Array.isArray(createdObj?.ingredients)) {
+          savedIngredients = createdObj.ingredients;
+        }
+        finalProductId = String(createdObj?.id || "");
       }
 
       if (!finalProductId) {
@@ -673,11 +854,11 @@ export const ProductManagement = () => {
         stock: numericStock,
         isAvailableInMenu: prodForm.isAvailableInMenu,
         imageUrl: finalDisplayImageUrl,
+        ingredients: savedIngredients,
       };
 
       setCategories((prevCategories) =>
         prevCategories.map((cat) => {
-          // اگر دسته‌بندی محصول هنگام ویرایش تغییر کرده باشد
           if (
             prodModal.data &&
             previousCategoryId &&
@@ -774,6 +955,16 @@ export const ProductManagement = () => {
     return parseInt(clean, 10) || 0;
   }, [prodForm.price]);
 
+  const buildIngredientsTooltip = (ings?: ProductIngredient[]) => {
+    if (!ings || ings.length === 0) return "";
+    return ings
+      .map(
+        (ing) =>
+          `${ing.inventoryItemName || "کالا"}: ${formatNum(ing.quantityUsed)} ${ing.unitLabel || ""}`,
+      )
+      .join(" | ");
+  };
+
   if (isLoading)
     return (
       <div className="min-h-screen bg-[#F5F5F7] flex justify-center items-center">
@@ -852,12 +1043,20 @@ export const ProductManagement = () => {
                 مدیریت منو و محصولات
               </h1>
               <p className="text-slate-500 text-xs sm:text-sm font-bold mt-0.5">
-                ویرایش سریع قیمت‌ها، کنترل موجودی لحظه‌ای و دسته‌بندی غذاها
+                ویرایش سریع قیمت‌ها، اتصال به انبار و دسته‌بندی غذاها
               </p>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
+            <Link
+              to="/inventory"
+              className="bg-white hover:bg-slate-50 text-slate-800 border border-slate-200/80 px-4 py-3 rounded-2xl font-black text-xs sm:text-sm flex items-center gap-2 shadow-2xs transition-all active:scale-95"
+            >
+              <Boxes size={17} className="text-orange-500" />
+              <span>انبارداری</span>
+            </Link>
+
             <button
               type="button"
               onClick={() => openCatModal(null)}
@@ -955,7 +1154,7 @@ export const ProductManagement = () => {
 
         {/* ================= چیدمان اصلی: سایدبار دسته‌بندی + فضای کاری محصولات ================= */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* ستون کناری دسته‌بندی‌ها (Sticky Category Navigator) */}
+          {/* ستون کناری دسته‌بندی‌ها */}
           <aside className="lg:col-span-3 lg:sticky lg:top-6 space-y-3">
             <div className="bg-white/90 backdrop-blur-xl border border-white rounded-[28px] p-4 shadow-[0_8px_30px_rgba(0,0,0,0.03)]">
               <div className="flex items-center justify-between px-2 mb-3">
@@ -972,7 +1171,6 @@ export const ProductManagement = () => {
                 </button>
               </div>
 
-              {/* لیست دسته‌بندی‌ها (افقی در موبایل، عمودی در دسکتاپ) */}
               <div className="flex flex-row lg:flex-col gap-1.5 overflow-x-auto lg:overflow-y-auto lg:max-h-[62vh] hide-scrollbar pb-1 lg:pb-0">
                 <button
                   type="button"
@@ -1022,7 +1220,6 @@ export const ProductManagement = () => {
                           {count.toLocaleString("fa-IR")}
                         </span>
 
-                        {/* دکمه‌های ویرایش/حذف سریع دسته در دسکتاپ */}
                         <div
                           onClick={(e) => e.stopPropagation()}
                           className="hidden lg:flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity mr-1"
@@ -1062,7 +1259,7 @@ export const ProductManagement = () => {
 
           {/* ستون اصلی محصولات */}
           <div className="lg:col-span-9 space-y-5">
-            {/* نوار جستجو، تغییر حالت نمایش و جمع/باز کردن دسته‌ها */}
+            {/* نوار جستجو و سوییچ نمایش */}
             <div className="bg-white/90 backdrop-blur-xl border border-white rounded-[26px] p-3 sm:p-4 shadow-[0_8px_30px_rgba(0,0,0,0.03)] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
               <div className="relative flex-1">
                 <Search
@@ -1107,7 +1304,6 @@ export const ProductManagement = () => {
                   </div>
                 )}
 
-                {/* سوییچ تغییر نمای جدولی / کارتی */}
                 <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
                   <button
                     type="button"
@@ -1187,7 +1383,6 @@ export const ProductManagement = () => {
                     key={category.id}
                     className="bg-white/90 backdrop-blur-xl border border-white rounded-[28px] overflow-hidden shadow-[0_10px_35px_rgba(0,0,0,0.03)]"
                   >
-                    {/* هدر جمع‌شونده دسته‌بندی */}
                     <div
                       onClick={() => {
                         if (selectedCategoryId === "all") {
@@ -1263,7 +1458,6 @@ export const ProductManagement = () => {
                       </div>
                     </div>
 
-                    {/* بدنه محصولات دسته‌بندی */}
                     {!isCollapsed && (
                       <div className="p-4 sm:p-5">
                         {category.items.length === 0 ? (
@@ -1271,7 +1465,6 @@ export const ProductManagement = () => {
                             هنوز محصولی در این دسته‌بندی ثبت نشده است.
                           </div>
                         ) : viewMode === "table" ? (
-                          /* ================= حالت ۱: جدول فشرده پرسرعت ================= */
                           <div className="overflow-x-auto">
                             <table className="w-full text-right border-collapse">
                               <thead>
@@ -1281,7 +1474,7 @@ export const ProductManagement = () => {
                                     قیمت (کلیک برای ویرایش)
                                   </th>
                                   <th className="py-2.5 px-3 hidden sm:table-cell">
-                                    موجودی
+                                    موجودی / انبار
                                   </th>
                                   <th className="py-2.5 px-3 text-center">
                                     نمایش در منو
@@ -1299,6 +1492,8 @@ export const ProductManagement = () => {
                                   const isUpdating = Boolean(
                                     updatingItemIds[item.id],
                                   );
+                                  const ingCount =
+                                    item.ingredients?.length || 0;
 
                                   return (
                                     <tr
@@ -1307,7 +1502,6 @@ export const ProductManagement = () => {
                                         isOut ? "opacity-60" : ""
                                       }`}
                                     >
-                                      {/* نام و عکس بندانگشتی */}
                                       <td className="py-3 px-2">
                                         <div className="flex items-center gap-3 min-w-[180px]">
                                           <div className="w-11 h-11 rounded-xl bg-slate-100 border border-slate-200/70 overflow-hidden shrink-0 flex items-center justify-center">
@@ -1339,7 +1533,6 @@ export const ProductManagement = () => {
                                         </div>
                                       </td>
 
-                                      {/* ویرایش درجا قیمت */}
                                       <td className="py-3 px-3 whitespace-nowrap">
                                         {inlinePriceId === item.id ? (
                                           <div className="flex items-center gap-1">
@@ -1407,30 +1600,50 @@ export const ProductManagement = () => {
                                         )}
                                       </td>
 
-                                      {/* وضعیت موجودی */}
                                       <td className="py-3 px-3 whitespace-nowrap hidden sm:table-cell">
-                                        {item.stock !== null &&
-                                        item.stock !== undefined ? (
-                                          <span
-                                            className={`px-2.5 py-1 rounded-lg text-[11px] font-black ${
-                                              item.stock === 0
-                                                ? "bg-rose-50 text-rose-600"
-                                                : item.stock <= 5
-                                                  ? "bg-amber-50 text-amber-700"
-                                                  : "bg-slate-100 text-slate-700"
-                                            }`}
-                                          >
-                                            {item.stock.toLocaleString("fa-IR")}{" "}
-                                            عدد
-                                          </span>
-                                        ) : (
-                                          <span className="text-[11px] text-slate-400 font-bold">
-                                            نامحدود
-                                          </span>
-                                        )}
+                                        <div className="flex flex-wrap items-center gap-1.5">
+                                          {item.stock !== null &&
+                                          item.stock !== undefined ? (
+                                            <span
+                                              className={`px-2.5 py-1 rounded-lg text-[11px] font-black ${
+                                                item.stock === 0
+                                                  ? "bg-rose-50 text-rose-600"
+                                                  : item.stock <= 5
+                                                    ? "bg-amber-50 text-amber-700"
+                                                    : "bg-slate-100 text-slate-700"
+                                              }`}
+                                            >
+                                              {item.stock.toLocaleString(
+                                                "fa-IR",
+                                              )}{" "}
+                                              عدد
+                                            </span>
+                                          ) : (
+                                            <span className="text-[11px] text-slate-400 font-bold">
+                                              نامحدود
+                                            </span>
+                                          )}
+
+                                          {ingCount > 0 && (
+                                            <span
+                                              title={buildIngredientsTooltip(
+                                                item.ingredients,
+                                              )}
+                                              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-orange-50 border border-orange-200/70 text-orange-600 text-[10px] font-black"
+                                            >
+                                              <Boxes size={11} />
+                                              <span>
+                                                انبار (
+                                                {ingCount.toLocaleString(
+                                                  "fa-IR",
+                                                )}
+                                                )
+                                              </span>
+                                            </span>
+                                          )}
+                                        </div>
                                       </td>
 
-                                      {/* سوییچ فوری موجود / ناموجود */}
                                       <td className="py-3 px-3 text-center">
                                         <button
                                           type="button"
@@ -1449,7 +1662,6 @@ export const ProductManagement = () => {
                                         </button>
                                       </td>
 
-                                      {/* دکمه‌های عملیات */}
                                       <td className="py-3 px-2 text-left whitespace-nowrap">
                                         <div className="inline-flex items-center gap-1">
                                           <button
@@ -1498,12 +1710,12 @@ export const ProductManagement = () => {
                             </table>
                           </div>
                         ) : (
-                          /* ================= حالت ۲: کارت‌های تصویری ================= */
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {category.items.map((item) => {
                               const isHidden =
                                 item.isAvailableInMenu === false ||
                                 item.stock === 0;
+                              const ingCount = item.ingredients?.length || 0;
 
                               return (
                                 <div
@@ -1580,7 +1792,7 @@ export const ProductManagement = () => {
                                       </p>
                                     </div>
 
-                                    <div className="flex justify-between items-center mt-3 pt-2 border-t border-slate-50">
+                                    <div className="flex flex-wrap justify-between items-center gap-2 mt-3 pt-2 border-t border-slate-50">
                                       <span className="font-black text-slate-900 text-sm">
                                         {Number(item.price || 0).toLocaleString(
                                           "fa-IR",
@@ -1590,31 +1802,48 @@ export const ProductManagement = () => {
                                         </span>
                                       </span>
 
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          handleQuickToggleAvailability(item)
-                                        }
-                                        className={`text-[10px] font-black px-2.5 py-1 rounded-lg border flex items-center gap-1 transition-colors ${
-                                          isHidden
-                                            ? "text-rose-600 bg-rose-50 border-rose-100"
-                                            : "text-emerald-700 bg-emerald-50 border-emerald-100"
-                                        }`}
-                                      >
-                                        {isHidden ? (
-                                          <Package size={12} />
-                                        ) : (
-                                          <CheckCircle2 size={12} />
+                                      <div className="flex items-center gap-1.5">
+                                        {ingCount > 0 && (
+                                          <span
+                                            title={buildIngredientsTooltip(
+                                              item.ingredients,
+                                            )}
+                                            className="text-[10px] font-black px-2 py-1 rounded-lg bg-orange-50 text-orange-600 border border-orange-100 inline-flex items-center gap-1"
+                                          >
+                                            <Boxes size={11} />
+                                            <span>
+                                              {ingCount.toLocaleString("fa-IR")}{" "}
+                                              ماده
+                                            </span>
+                                          </span>
                                         )}
-                                        <span>
-                                          {!item.isAvailableInMenu
-                                            ? "ناموجود"
-                                            : item.stock !== null &&
-                                                item.stock !== undefined
-                                              ? `موجودی: ${item.stock}`
-                                              : "فعال"}
-                                        </span>
-                                      </button>
+
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            handleQuickToggleAvailability(item)
+                                          }
+                                          className={`text-[10px] font-black px-2.5 py-1 rounded-lg border flex items-center gap-1 transition-colors ${
+                                            isHidden
+                                              ? "text-rose-600 bg-rose-50 border-rose-100"
+                                              : "text-emerald-700 bg-emerald-50 border-emerald-100"
+                                          }`}
+                                        >
+                                          {isHidden ? (
+                                            <Package size={12} />
+                                          ) : (
+                                            <CheckCircle2 size={12} />
+                                          )}
+                                          <span>
+                                            {!item.isAvailableInMenu
+                                              ? "ناموجود"
+                                              : item.stock !== null &&
+                                                  item.stock !== undefined
+                                                ? `موجودی: ${item.stock}`
+                                                : "فعال"}
+                                          </span>
+                                        </button>
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
@@ -1702,7 +1931,7 @@ export const ProductManagement = () => {
         </div>
       )}
 
-      {/* ================= مودال محصول (با انتخابگر دسته‌بندی و پیش‌نمایش قیمت) ================= */}
+      {/* ================= مودال محصول (همراه با اتصال اختیاری به انبار) ================= */}
       {prodModal.isOpen && (
         <div
           onClick={() =>
@@ -1829,7 +2058,6 @@ export const ProductManagement = () => {
 
               {/* ستون فیلدهای اطلاعات */}
               <div className="md:col-span-3 space-y-4 flex flex-col">
-                {/* انتخابگر دسته‌بندی */}
                 <div>
                   <label className="block text-xs font-black text-slate-500 mb-1.5">
                     دسته‌بندی محصول
@@ -1952,7 +2180,7 @@ export const ProductManagement = () => {
                       توضیحات و ترکیبات (فارسی)
                     </label>
                     <textarea
-                      rows={isBilingual ? 3 : 4}
+                      rows={isBilingual ? 3 : 3}
                       placeholder="پنه، سس آلفردو، قارچ، مرغ گریل شده..."
                       value={prodForm.descriptionFa}
                       onChange={(e) =>
@@ -1986,7 +2214,129 @@ export const ProductManagement = () => {
                   )}
                 </div>
 
-                <div className="mt-auto pt-4">
+                {/* ================= بخش اختیاری کسر خودکار از انبار ================= */}
+                <div className="bg-slate-50/90 border border-slate-200/80 rounded-[24px] p-4 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center shrink-0">
+                        <Boxes size={16} />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-black text-slate-900">
+                          مواد مصرفی از انبار (اختیاری)
+                        </h4>
+                        <p className="text-[10px] font-bold text-slate-400">
+                          با ثبت هر ۱ عدد سفارش، این مقادیر خودکار از انبار کسر
+                          می‌شوند
+                        </p>
+                      </div>
+                    </div>
+
+                    {inventoryItems.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={addIngredientRow}
+                        className="px-3 py-1.5 rounded-xl bg-white hover:bg-orange-500 text-slate-700 hover:text-white border border-slate-200 hover:border-orange-500 text-[11px] font-black inline-flex items-center gap-1 transition-colors"
+                      >
+                        <Plus size={13} strokeWidth={2.8} />
+                        <span>افزودن ماده</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {inventoryItems.length === 0 ? (
+                    <div className="bg-white border border-dashed border-slate-200 rounded-2xl p-3.5 text-center">
+                      <p className="text-[11px] font-bold text-slate-500 mb-2">
+                        هنوز هیچ ماده اولیه‌ای در انبار تعریف نشده است.
+                      </p>
+                      <Link
+                        to="/inventory"
+                        className="inline-flex items-center gap-1 text-[11px] font-black text-orange-600 hover:underline"
+                      >
+                        <span>رفتن به صفحه انبارداری</span>
+                      </Link>
+                    </div>
+                  ) : prodForm.ingredients.length === 0 ? (
+                    <p className="text-[11px] font-bold text-slate-400 bg-white/70 border border-dashed border-slate-200 rounded-2xl py-3 px-3.5 text-center">
+                      بدون اتصال به انبار — برای فعال‌سازی کسر خودکار، روی
+                      «افزودن ماده» بزنید.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {prodForm.ingredients.map((row, idx) => {
+                        const selectedInv = inventoryItems.find(
+                          (i) => i.id === row.inventoryItemId,
+                        );
+                        const usedInOtherRows = new Set(
+                          prodForm.ingredients
+                            .filter((_, otherIdx) => otherIdx !== idx)
+                            .map((r) => r.inventoryItemId),
+                        );
+
+                        return (
+                          <div
+                            key={`${idx}-${row.inventoryItemId}`}
+                            className="bg-white border border-slate-200/80 rounded-2xl p-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-2"
+                          >
+                            <select
+                              value={row.inventoryItemId}
+                              onChange={(e) =>
+                                updateIngredientRow(idx, {
+                                  inventoryItemId: e.target.value,
+                                })
+                              }
+                              className="flex-1 bg-slate-50 border border-slate-200/70 rounded-xl py-2 px-3 text-xs font-black text-slate-800 outline-none focus:border-orange-500"
+                            >
+                              {inventoryItems.map((opt) => (
+                                <option
+                                  key={opt.id}
+                                  value={opt.id}
+                                  disabled={usedInOtherRows.has(opt.id)}
+                                >
+                                  {opt.name} (موجودی:{" "}
+                                  {formatNum(opt.currentStock)} {opt.unitLabel})
+                                </option>
+                              ))}
+                            </select>
+
+                            <div className="flex items-center gap-1.5">
+                              <div className="relative flex-1 sm:w-32">
+                                <input
+                                  type="text"
+                                  dir="ltr"
+                                  placeholder="مقدار"
+                                  value={row.quantityUsed}
+                                  onChange={(e) =>
+                                    updateIngredientRow(idx, {
+                                      quantityUsed: toEnglishDecimal(
+                                        e.target.value,
+                                      ),
+                                    })
+                                  }
+                                  className="w-full bg-slate-50 focus:bg-white border border-slate-200/70 focus:border-orange-500 rounded-xl py-2 pl-3 pr-14 text-xs font-mono font-black text-left outline-none"
+                                />
+                                <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400 pointer-events-none">
+                                  {selectedInv?.unitLabel || "واحد"}
+                                </span>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => removeIngredientRow(idx)}
+                                title="حذف این ماده"
+                                className="w-8 h-8 rounded-xl bg-rose-50 hover:bg-rose-500 text-rose-500 hover:text-white flex items-center justify-center shrink-0 transition-colors"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-auto pt-2">
                   <button
                     type="button"
                     onClick={saveProduct}

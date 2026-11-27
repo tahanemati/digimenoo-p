@@ -19,7 +19,8 @@ export type FeatureKey =
   | "callChef"
   | "reservations"
   | "kitchenPanel"
-  | "financialReports";
+  | "financialReports"
+  | "inventory";
 
 export interface SubscriptionEntitlements {
   hasSubscription: boolean;
@@ -83,6 +84,7 @@ const TIER_FALLBACK_SPECS: Record<
       reservations: false,
       kitchenPanel: false,
       financialReports: false,
+      inventory: false,
     },
   },
   basic: {
@@ -97,6 +99,7 @@ const TIER_FALLBACK_SPECS: Record<
       reservations: false,
       kitchenPanel: true,
       financialReports: true,
+      inventory: true,
     },
   },
   standard: {
@@ -118,6 +121,7 @@ const TIER_FALLBACK_SPECS: Record<
       reservations: true,
       kitchenPanel: true,
       financialReports: true,
+      inventory: true,
     },
   },
   plus: {
@@ -132,6 +136,7 @@ const TIER_FALLBACK_SPECS: Record<
       reservations: true,
       kitchenPanel: true,
       financialReports: true,
+      inventory: true,
     },
   },
 };
@@ -286,6 +291,7 @@ const REFRESH_ROUTES = new Set([
   "/reservations",
   "/kitchen",
   "/financial-reports",
+  "/inventory",
 ]);
 
 export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({

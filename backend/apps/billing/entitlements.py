@@ -25,6 +25,7 @@ TIER_ENTITLEMENTS = {
             "reservations": False,
             "kitchenPanel": False,
             "financialReports": False,
+            "inventory": False,
         },
     },
     "basic": {
@@ -39,6 +40,7 @@ TIER_ENTITLEMENTS = {
             "reservations": False,
             "kitchenPanel": True,
             "financialReports": True,
+            "inventory": True,
         },
     },
     "standard": {
@@ -53,6 +55,7 @@ TIER_ENTITLEMENTS = {
             "reservations": True,
             "kitchenPanel": True,
             "financialReports": True,
+            "inventory": True,
         },
     },
     "plus": {
@@ -67,6 +70,7 @@ TIER_ENTITLEMENTS = {
             "reservations": True,
             "kitchenPanel": True,
             "financialReports": True,
+            "inventory": True,
         },
     },
 }
@@ -87,7 +91,7 @@ def ensure_default_subscription_plans():
             "features": (
                 "دسترسی به ۳ قالب اول منو\n"
                 "پنل زنده آشپزخانه (KDS)\n"
-                "گزارشات مالی و فروش\n"
+                "گزارشات مالی و سیستم انبارداری\n"
                 "ساخت بارکد QR اختصاصی میزها"
             ),
             "icon": "Package",
@@ -111,7 +115,7 @@ def ensure_default_subscription_plans():
                 "منوی دو زبانه (فارسی و انگلیسی)\n"
                 "سیستم رزرو آنلاین میزها\n"
                 "قابلیت درخواست گارسون و سرآشپز\n"
-                "پنل آشپزخانه (KDS) و گزارشات مالی"
+                "پنل آشپزخانه (KDS)، انبارداری و گزارشات مالی"
             ),
             "icon": "Store",
             "badge_text": "محبوب‌ترین انتخاب",
@@ -132,7 +136,7 @@ def ensure_default_subscription_plans():
                 "دسترسی کامل به هر ۱۵ قالب اختصاصی منو\n"
                 "سیستم تیم‌بندی و تعریف نقش پرسنل\n"
                 "تمامی امکانات پلن استاندارد (سفارش، رزرو، دوزبانه، گارسون و سرآشپز)\n"
-                "پنل زنده آشپزخانه (KDS) و گزارشات جامع مالی"
+                "پنل زنده آشپزخانه (KDS)، انبارداری و گزارشات جامع مالی"
             ),
             "icon": "Crown",
             "badge_text": "کامل‌ترین بسته",

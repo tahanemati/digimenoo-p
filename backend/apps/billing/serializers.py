@@ -1,4 +1,3 @@
-import math
 from rest_framework import serializers
 from django.utils import timezone
 from .models import WalletTransaction, SubscriptionPlan, UserSubscription
@@ -82,13 +81,11 @@ class SubscriptionPlanSerializer(serializers.ModelSerializer):
         return [line.strip() for line in obj.features.splitlines() if line.strip()]
 
     def get_maxTemplates(self, obj):
-        tier_key = str(obj.tier or "basic").strip().lower()
-        spec = TIER_ENTITLEMENTS.get(tier_key, TIER_ENTITLEMENTS["basic"])
+        spec = TIER_ENTITLEMENTS.get(obj.tier, TIER_ENTITLEMENTS["basic"])
         return spec["max_templates"]
 
     def get_entitlements(self, obj):
-        tier_key = str(obj.tier or "basic").strip().lower()
-        spec = TIER_ENTITLEMENTS.get(tier_key, TIER_ENTITLEMENTS["basic"])
+        spec = TIER_ENTITLEMENTS.get(obj.tier, TIER_ENTITLEMENTS["basic"])
         return spec["features"]
 
 
@@ -142,15 +139,12 @@ class UserSubscriptionSerializer(serializers.ModelSerializer):
     def get_daysRemaining(self, obj):
         if not obj.is_active_now:
             return 0
-        remaining_seconds = max(0, (obj.expire_date - timezone.now()).total_seconds())
-        return math.ceil(remaining_seconds / 86400)
+        return max(0, (obj.expire_date - timezone.now()).days)
 
     def get_tier(self, obj):
         if not obj.is_active_now:
             return "none"
-        if obj.plan and obj.plan.tier:
-            return str(obj.plan.tier).strip().lower()
-        return SubscriptionPlan.Tier.PLUS if obj.is_trial else SubscriptionPlan.Tier.BASIC
+        return obj.plan.tier if obj.plan else SubscriptionPlan.Tier.BASIC
 
     def _get_spec(self, obj):
         return TIER_ENTITLEMENTS.get(self.get_tier(obj), TIER_ENTITLEMENTS["none"])

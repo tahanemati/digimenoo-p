@@ -96,7 +96,10 @@ apiClient.interceptors.response.use(
         errorMessage = resData.errors[firstKey][0];
       } else if (resData.message || resData.detail || resData.title) {
         errorMessage = resData.message || resData.detail || resData.title;
-      } else if (typeof resData === "string") {
+      } else if (
+        typeof resData === "string" &&
+        !resData.trim().startsWith("<")
+      ) {
         errorMessage = resData;
       }
     }
@@ -309,6 +312,7 @@ export const menuApi = {
     stock: number | null;
     isAvailableInMenu: boolean;
     imageUrl?: string;
+    ingredients?: { inventoryItemId: string; quantityUsed: number }[];
   }) => {
     const res = await apiClient.post("/menu/products/", data);
     return res.data;
@@ -326,6 +330,7 @@ export const menuApi = {
       stock: number | null;
       isAvailableInMenu: boolean;
       imageUrl?: string;
+      ingredients?: { inventoryItemId: string; quantityUsed: number }[];
     },
   ) => {
     const res = await apiClient.put(`/menu/products/${id}/`, data);
@@ -348,6 +353,64 @@ export const menuApi = {
       res.data?.url ||
       ""
     );
+  },
+};
+
+// =======================
+// انبارداری و مواد اولیه
+// =======================
+export const inventoryApi = {
+  getItems: async () => {
+    const res = await apiClient.get(`/inventory/items/?_t=${Date.now()}`);
+    return res.data;
+  },
+  createItem: async (data: {
+    name: string;
+    category?: string;
+    unit: "gram" | "kg" | "piece" | "ml" | "liter" | "pack" | "portion";
+    currentStock: number;
+    minStock: number;
+    unitCost?: number;
+    notes?: string;
+  }) => {
+    const res = await apiClient.post("/inventory/items/", data);
+    return res.data;
+  },
+  updateItem: async (
+    id: string,
+    data: {
+      name?: string;
+      category?: string;
+      unit?: "gram" | "kg" | "piece" | "ml" | "liter" | "pack" | "portion";
+      currentStock?: number;
+      minStock?: number;
+      unitCost?: number;
+      notes?: string;
+    },
+  ) => {
+    const res = await apiClient.put(`/inventory/items/${id}/`, data);
+    return res.data;
+  },
+  deleteItem: async (id: string) => {
+    const res = await apiClient.delete(`/inventory/items/${id}/`);
+    return res.data;
+  },
+  adjustStock: async (
+    id: string,
+    data: { type: "in" | "out" | "adjust"; quantity: number; note?: string },
+  ) => {
+    const res = await apiClient.post(`/inventory/items/${id}/adjust/`, data);
+    return res.data;
+  },
+  getTransactions: async (params?: { itemId?: string; type?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.itemId) query.append("itemId", params.itemId);
+    if (params?.type) query.append("type", params.type);
+    query.append("_t", String(Date.now()));
+    const res = await apiClient.get(
+      `/inventory/transactions/?${query.toString()}`,
+    );
+    return res.data;
   },
 };
 
