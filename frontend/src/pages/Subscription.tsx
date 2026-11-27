@@ -15,11 +15,13 @@ import {
   Wallet,
   Plus,
   AlertTriangle,
+  ShieldAlert,
   Check,
   Sparkles,
 } from "lucide-react";
 import { subscriptionApi, walletApi } from "../service/api";
 import { Link } from "react-router-dom";
+import { useSubscription } from "../context/SubscriptionContext";
 
 type DurationMonths = 3 | 6 | 9;
 type PlanTierKey = "basic" | "standard" | "plus";
@@ -58,6 +60,8 @@ const detectDurationMonths = (plan: any): number | null => {
 };
 
 export const Subscription = () => {
+  const { refreshSubscription } = useSubscription();
+
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -106,22 +110,36 @@ export const Subscription = () => {
       const safeHistory = extractArray(transRes);
 
       let subDetails = null;
-      if (activeSub && activeSub.expireDate) {
-        const expDate = new Date(activeSub.expireDate);
+      if (activeSub && (activeSub.expireDate || activeSub.isRevoked)) {
+        const expDate = activeSub.expireDate
+          ? new Date(activeSub.expireDate)
+          : new Date();
         const now = new Date();
         const diffTime = expDate.getTime() - now.getTime();
-        const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const computedDaysLeft = Math.max(
+          0,
+          Math.ceil(diffTime / (1000 * 60 * 60 * 24)),
+        );
+        const isRevoked = Boolean(activeSub.isRevoked);
+        const daysLeft = isRevoked
+          ? 0
+          : typeof activeSub.daysRemaining === "number"
+            ? activeSub.daysRemaining
+            : computedDaysLeft;
 
         subDetails = {
           ...activeSub,
+          isRevoked,
           days_left: daysLeft,
           total_days: activeSub.totalDays || activeSub.durationDays || 90,
-          is_trial_mode: activeSub.isTrial || false,
-          expireDateFormatted: new Intl.DateTimeFormat("fa-IR", {
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-          }).format(expDate),
+          is_trial_mode: Boolean(activeSub.isTrial),
+          expireDateFormatted: activeSub.expireDate
+            ? new Intl.DateTimeFormat("fa-IR", {
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              }).format(expDate)
+            : "-",
         };
       }
 
@@ -197,14 +215,12 @@ export const Subscription = () => {
 
     const matchedCards = tierConfigs
       .map((cfg, idx) => {
-        // ۱. جستجو برای پلنی که هم سطح (tier) و هم مدت (durationMonths) آن منطبق است
         let matched = rawPlans.find(
           (p, pIdx) =>
             detectTierKey(p, pIdx) === cfg.key &&
             detectDurationMonths(p) === selectedMonths,
         );
 
-        // ۲. اگر در بک‌اند فقط ۳ پلن تعریف شده و قیمت‌های ۳/۶/۹ ماهه روی همان رکورد ذخیره شده‌اند
         if (!matched) {
           const tierOnlyPlan = rawPlans.find(
             (p, pIdx) => detectTierKey(p, pIdx) === cfg.key,
@@ -285,7 +301,9 @@ export const Subscription = () => {
           `پلن ${confirmPlanModal.displayTitle} (${selectedMonths.toLocaleString("fa-IR")} ماهه) با موفقیت فعال شد!`,
       );
       setConfirmPlanModal(null);
-      await fetchInitialData();
+
+      // همگام‌سازی فوری اشتراک در کل پنل (سایدبار، بنر و دسترسی صفحات)
+      await Promise.all([fetchInitialData(), refreshSubscription()]);
     } catch (err: any) {
       setPurchaseError(
         err?.message ||
@@ -322,7 +340,7 @@ export const Subscription = () => {
           </div>
 
           <h2 className="text-2xl font-black text-slate-800 mb-3 tracking-tight">
-            اولین قدم در <span className="text-orange-500">دیجی‌منو</span>
+            اولین قدم در <span className="text-orange-500">ترنج</span>
           </h2>
           <p className="text-[14px] font-bold text-slate-500 leading-loose mb-8 px-4">
             {pageError}
@@ -339,7 +357,13 @@ export const Subscription = () => {
     );
   }
 
-  const isExpired = !currentPlan || currentPlan.days_left <= 0;
+  const isRevoked = Boolean(currentPlan?.isRevoked);
+  const isExpired =
+    !currentPlan ||
+    isRevoked ||
+    currentPlan.isActive === false ||
+    currentPlan.days_left <= 0;
+
   const elapsedDays = currentPlan
     ? Math.max(0, currentPlan.total_days - currentPlan.days_left)
     : 0;
@@ -432,22 +456,38 @@ export const Subscription = () => {
 
         {/* وضعیت اشتراک فعلی */}
         <div
-          className={`bg-white/80 backdrop-blur-xl border rounded-[32px] p-6 md:p-8 mb-12 relative overflow-hidden transition-all shadow-[0_10px_40px_rgb(0,0,0,0.03)] ${isExpired ? "border-rose-200" : currentPlan?.is_trial_mode ? "border-amber-200" : "border-emerald-200"}`}
+          className={`bg-white/80 backdrop-blur-xl border rounded-[32px] p-6 md:p-8 mb-12 relative overflow-hidden transition-all shadow-[0_10px_40px_rgb(0,0,0,0.03)] ${
+            isExpired
+              ? "border-rose-200"
+              : currentPlan?.is_trial_mode
+                ? "border-amber-200"
+                : "border-emerald-200"
+          }`}
         >
           <div
-            className={`absolute -top-24 -left-24 w-64 h-64 blur-[80px] rounded-full pointer-events-none ${isExpired ? "bg-rose-400/20" : currentPlan?.is_trial_mode ? "bg-amber-400/20" : "bg-emerald-400/20"}`}
+            className={`absolute -top-24 -left-24 w-64 h-64 blur-[80px] rounded-full pointer-events-none ${
+              isExpired
+                ? "bg-rose-400/20"
+                : currentPlan?.is_trial_mode
+                  ? "bg-amber-400/20"
+                  : "bg-emerald-400/20"
+            }`}
           />
 
           <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-8">
             <div className="flex-1">
               <div className="flex flex-wrap items-center gap-3 mb-4">
-                {isExpired ? (
+                {isRevoked ? (
+                  <span className="px-3 py-1 bg-rose-50 border border-rose-200 text-rose-600 text-xs font-bold rounded-full flex items-center gap-1.5 shadow-sm">
+                    <ShieldAlert size={14} /> اشتراک خلع / غیرفعال شده
+                  </span>
+                ) : isExpired ? (
                   <span className="px-3 py-1 bg-rose-50 border border-rose-200 text-rose-600 text-xs font-bold rounded-full flex items-center gap-1.5 shadow-sm">
                     <Lock size={14} /> بدون اشتراک فعال
                   </span>
                 ) : currentPlan?.is_trial_mode ? (
                   <span className="px-3 py-1 bg-amber-50 border border-amber-200 text-amber-600 text-xs font-bold rounded-full flex items-center gap-1.5 shadow-sm">
-                    <Gift size={14} /> نسخه آزمایشی فعال
+                    <Gift size={14} /> دوره آزمایشی رایگان ۷ روزه پلاس
                   </span>
                 ) : (
                   <span className="px-3 py-1 bg-emerald-50 border border-emerald-200 text-emerald-600 text-xs font-bold rounded-full flex items-center gap-1.5 shadow-sm">
@@ -466,7 +506,9 @@ export const Subscription = () => {
                 <span
                   className={`font-black ${isExpired ? "text-rose-500" : "text-slate-800"}`}
                 >
-                  {currentPlan?.expireDateFormatted || "-"}
+                  {isRevoked
+                    ? "لغو شده توسط مدیریت"
+                    : currentPlan?.expireDateFormatted || "-"}
                 </span>
               </div>
 
@@ -491,9 +533,15 @@ export const Subscription = () => {
                 </div>
                 <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-200/50 shadow-inner">
                   <div
-                    className={`h-full rounded-full transition-all duration-1000 ${isExpired ? "bg-rose-500" : currentPlan?.is_trial_mode ? "bg-gradient-to-r from-amber-400 to-amber-500" : "bg-gradient-to-r from-emerald-400 to-emerald-500"}`}
+                    className={`h-full rounded-full transition-all duration-1000 ${
+                      isExpired
+                        ? "bg-rose-500"
+                        : currentPlan?.is_trial_mode
+                          ? "bg-gradient-to-r from-amber-400 to-amber-500"
+                          : "bg-gradient-to-r from-emerald-400 to-emerald-500"
+                    }`}
                     style={{
-                      width: `${Math.min(Math.max(progressPercentage, 0), 100)}%`,
+                      width: `${Math.min(Math.max(isExpired ? 100 : progressPercentage, 0), 100)}%`,
                     }}
                   />
                 </div>
@@ -508,9 +556,17 @@ export const Subscription = () => {
                     .getElementById("plans-section")
                     ?.scrollIntoView({ behavior: "smooth" })
                 }
-                className={`w-full lg:w-auto px-8 py-4 rounded-2xl font-black transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2 shadow-lg ${isExpired ? "bg-rose-500 hover:bg-rose-600 text-white shadow-rose-500/25" : "bg-slate-900 hover:bg-slate-800 text-white shadow-slate-900/25"}`}
+                className={`w-full lg:w-auto px-8 py-4 rounded-2xl font-black transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2 shadow-lg ${
+                  isExpired
+                    ? "bg-rose-500 hover:bg-rose-600 text-white shadow-rose-500/25"
+                    : "bg-slate-900 hover:bg-slate-800 text-white shadow-slate-900/25"
+                }`}
               >
-                {isExpired ? "خرید پلن و فعالسازی" : "ارتقاء یا تمدید پلن"}{" "}
+                {isExpired
+                  ? "خرید پلن و فعالسازی"
+                  : currentPlan?.is_trial_mode
+                    ? "انتخاب و خرید پلن دائمی"
+                    : "ارتقاء یا تمدید پلن"}{" "}
                 <ArrowLeft size={18} />
               </button>
 
@@ -578,15 +634,22 @@ export const Subscription = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 max-w-6xl mx-auto gap-6 lg:gap-8 items-stretch relative z-10">
             {displayedPlans.map((plan: any) => {
               const IconComponent = (Icons as any)[plan.icon] || HelpCircle;
-              const isActivePlan =
-                currentPlan?.planId === plan.id && !isExpired;
+              const isActivePaidPlan =
+                !isExpired &&
+                !currentPlan?.is_trial_mode &&
+                (currentPlan?.planId === plan.id ||
+                  currentPlan?.tier === plan.tierKey);
               const badge =
                 plan.badgeText || (plan.isPopular ? "محبوب‌ترین انتخاب" : "");
 
               return (
                 <div
                   key={`${plan.id}-${selectedMonths}`}
-                  className={`relative bg-white border-2 rounded-[32px] p-8 transition-all duration-300 group shadow-sm hover:shadow-xl flex flex-col h-full ${plan.isPopular ? "border-orange-500 shadow-orange-500/10 lg:-translate-y-3" : "border-slate-100 hover:border-orange-200"}`}
+                  className={`relative bg-white border-2 rounded-[32px] p-8 transition-all duration-300 group shadow-sm hover:shadow-xl flex flex-col h-full ${
+                    plan.isPopular
+                      ? "border-orange-500 shadow-orange-500/10 lg:-translate-y-3"
+                      : "border-slate-100 hover:border-orange-200"
+                  }`}
                 >
                   {badge && (
                     <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-orange-500 text-white px-5 py-1.5 rounded-full text-xs font-black shadow-md shadow-orange-500/20 flex items-center gap-1.5 whitespace-nowrap">
@@ -605,7 +668,7 @@ export const Subscription = () => {
                         {plan.displayTitle}
                       </h3>
                       <p className="text-[11px] font-bold text-slate-400">
-                        {isActivePlan
+                        {isActivePaidPlan
                           ? "پلن فعال فعلی شما"
                           : `دوره ${selectedMonths.toLocaleString("fa-IR")} ماهه (${plan.durationDays.toLocaleString("fa-IR")} روز)`}
                       </p>
@@ -652,9 +715,13 @@ export const Subscription = () => {
                     type="button"
                     onClick={() => openPurchaseModal(plan)}
                     disabled={isProcessing}
-                    className={`w-full mt-auto py-4 rounded-2xl font-black transition-all text-[15px] flex justify-center items-center gap-2 ${plan.isPopular ? "bg-orange-500 hover:bg-orange-600 text-white shadow-lg shadow-orange-500/25" : "bg-slate-900 hover:bg-orange-500 text-white shadow-md"}`}
+                    className={`w-full mt-auto py-4 rounded-2xl font-black transition-all text-[15px] flex justify-center items-center gap-2 ${
+                      plan.isPopular
+                        ? "bg-orange-500 hover:bg-orange-600 text-white shadow-lg shadow-orange-500/25"
+                        : "bg-slate-900 hover:bg-orange-500 text-white shadow-md"
+                    }`}
                   >
-                    {isActivePlan
+                    {isActivePaidPlan
                       ? `تمدید ${selectedMonths.toLocaleString("fa-IR")} ماهه`
                       : `انتخاب پلن ${plan.displayTitle}`}
                   </button>
@@ -711,7 +778,11 @@ export const Subscription = () => {
               <div className="flex justify-between text-sm font-bold pt-2 border-t border-slate-200/70">
                 <span className="text-slate-500">موجودی فعلی کیف پول:</span>
                 <span
-                  className={`font-black ${walletBalance >= confirmPlanModal.price ? "text-emerald-600" : "text-rose-600"}`}
+                  className={`font-black ${
+                    walletBalance >= confirmPlanModal.price
+                      ? "text-emerald-600"
+                      : "text-rose-600"
+                  }`}
                 >
                   {walletBalance.toLocaleString("fa-IR")} تومان
                 </span>

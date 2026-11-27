@@ -15,9 +15,15 @@ import {
   BellRing,
   BarChart3,
   CalendarCheck,
+  Crown,
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { authApi } from "../service/api";
+import {
+  useSubscription,
+  type FeatureKey,
+  type PlanTier,
+} from "../context/SubscriptionContext";
 
 import { driver } from "driver.js";
 import "driver.js/dist/driver.css";
@@ -28,6 +34,24 @@ interface SidebarProps {
 }
 
 type SidebarSegment = "operations" | "management";
+
+interface SidebarMenuItem {
+  id: string;
+  path: string;
+  name: string;
+  icon: any;
+  segment: SidebarSegment;
+  allowedRoles: string[];
+  requiredFeature?: FeatureKey;
+  requiredTier?: Exclude<PlanTier, "none">;
+  upgradeMessage?: string;
+}
+
+const TIER_BADGE_LABELS: Record<Exclude<PlanTier, "none">, string> = {
+  basic: "پایه",
+  standard: "استاندارد",
+  plus: "پلاس",
+};
 
 const ToranjLogoMark = ({
   className = "w-10 h-10",
@@ -67,6 +91,12 @@ const ToranjLogoMark = ({
 export const Sidebar = ({}: SidebarProps) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const {
+    subscription,
+    isLoading: isSubLoading,
+    can,
+    openUpgradeModal,
+  } = useSubscription();
 
   const initialRole = (localStorage.getItem("role") || "owner").toLowerCase();
   const [role, setRole] = useState(initialRole);
@@ -85,14 +115,7 @@ export const Sidebar = ({}: SidebarProps) => {
 
   const normalizedRole = role.toLowerCase();
 
-  const menuItems: {
-    id: string;
-    path: string;
-    name: string;
-    icon: any;
-    segment: SidebarSegment;
-    allowedRoles: string[];
-  }[] = [
+  const menuItems: SidebarMenuItem[] = [
     // تب اول: سالن و سفارشات روزانه
     {
       id: "dashboard",
@@ -114,6 +137,10 @@ export const Sidebar = ({}: SidebarProps) => {
       icon: normalizedRole === "waiter" ? BellRing : ChefHat,
       segment: "operations",
       allowedRoles: ["owner", "cashier", "kitchen", "waiter"],
+      requiredFeature: "kitchenPanel",
+      requiredTier: "basic",
+      upgradeMessage:
+        "برای استفاده از پنل زنده آشپزخانه نیاز به اشتراک فعال دارید.",
     },
     {
       id: "reservations",
@@ -122,6 +149,10 @@ export const Sidebar = ({}: SidebarProps) => {
       icon: CalendarCheck,
       segment: "operations",
       allowedRoles: ["owner"],
+      requiredFeature: "reservations",
+      requiredTier: "standard",
+      upgradeMessage:
+        "سیستم رزرو آنلاین میزها در پلن استاندارد و پلاس فعال است.",
     },
     {
       id: "ProductManagement",
@@ -148,6 +179,9 @@ export const Sidebar = ({}: SidebarProps) => {
       icon: BarChart3,
       segment: "management",
       allowedRoles: ["owner", "cashier"],
+      requiredFeature: "financialReports",
+      requiredTier: "basic",
+      upgradeMessage: "برای مشاهده گزارشات مالی نیاز به اشتراک فعال دارید.",
     },
     {
       id: "wallet",
@@ -164,6 +198,10 @@ export const Sidebar = ({}: SidebarProps) => {
       icon: Users,
       segment: "management",
       allowedRoles: ["owner"],
+      requiredFeature: "teamManagement",
+      requiredTier: "plus",
+      upgradeMessage:
+        "سیستم تیم‌بندی و تعریف نقش پرسنل (صندوق‌دار، سرآشپز، گارسون) ویژه پلن پلاس است.",
     },
     {
       id: "venues",
@@ -190,6 +228,21 @@ export const Sidebar = ({}: SidebarProps) => {
       allowedRoles: ["owner", "cashier", "kitchen", "waiter"],
     },
   ];
+
+  // بررسی قفل بودن آیتم بر اساس پلن فعلی
+  const isItemPlanLocked = (item: SidebarMenuItem) => {
+    if (isSubLoading || !item.requiredFeature) return false;
+    return !can(item.requiredFeature);
+  };
+
+  const triggerItemUpgrade = (item: SidebarMenuItem) => {
+    openUpgradeModal({
+      title: `دسترسی به «${item.name}»`,
+      message: item.upgradeMessage,
+      requiredTier: item.requiredTier || "plus",
+      feature: item.requiredFeature,
+    });
+  };
 
   // همگام‌سازی خودکار تب فعال سایدبار با صفحه فعلی
   useEffect(() => {
@@ -354,6 +407,11 @@ export const Sidebar = ({}: SidebarProps) => {
         showMobileWarning();
         return;
       }
+      const targetItem = allowedItems.find((i) => i.path === tabPath);
+      if (targetItem && isItemPlanLocked(targetItem)) {
+        triggerItemUpgrade(targetItem);
+        return;
+      }
       navigate(tabPath, { replace: true });
       if (navigator.vibrate) navigator.vibrate(10);
     }
@@ -434,18 +492,50 @@ export const Sidebar = ({}: SidebarProps) => {
             {visibleDesktopItems.map((item) => {
               const isActive = location.pathname === item.path;
               const isDisabled = isMenuLocked && item.path !== "/dashboard";
+              const isPlanLocked = !isDisabled && isItemPlanLocked(item);
+              const requiredTierLabel = item.requiredTier
+                ? TIER_BADGE_LABELS[item.requiredTier]
+                : "پلاس";
 
-              return isDisabled ? (
-                <div
-                  key={item.id}
-                  className="flex items-center gap-3 px-3.5 py-3 rounded-[20px] text-[14px] font-black text-slate-300 opacity-50 cursor-not-allowed select-none"
-                >
-                  <div className="w-8 h-8 rounded-[11px] bg-slate-100/60 flex items-center justify-center shrink-0">
-                    <item.icon size={18} strokeWidth={2} />
+              if (isDisabled) {
+                return (
+                  <div
+                    key={item.id}
+                    className="flex items-center gap-3 px-3.5 py-3 rounded-[20px] text-[14px] font-black text-slate-300 opacity-50 cursor-not-allowed select-none"
+                  >
+                    <div className="w-8 h-8 rounded-[11px] bg-slate-100/60 flex items-center justify-center shrink-0">
+                      <item.icon size={18} strokeWidth={2} />
+                    </div>
+                    <span className="truncate">{item.name}</span>
                   </div>
-                  <span className="truncate">{item.name}</span>
-                </div>
-              ) : (
+                );
+              }
+
+              if (isPlanLocked) {
+                return (
+                  <button
+                    key={item.id}
+                    id={`tour-${item.id}`}
+                    type="button"
+                    onClick={() => triggerItemUpgrade(item)}
+                    className="w-full group flex items-center justify-between gap-2 px-3.5 py-3 rounded-[20px] transition-all duration-200 text-[14px] font-black text-slate-500 hover:bg-white/75 hover:text-slate-900 text-right"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-8 h-8 rounded-[11px] bg-slate-100/90 text-slate-400 group-hover:text-orange-500 flex items-center justify-center shrink-0 transition-colors">
+                        <item.icon size={17} strokeWidth={2.2} />
+                      </div>
+                      <span className="truncate">{item.name}</span>
+                    </div>
+
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-50 border border-orange-200/70 text-orange-600 text-[10px] font-black shrink-0">
+                      <Lock size={10} strokeWidth={2.6} />
+                      <span>{requiredTierLabel}</span>
+                    </span>
+                  </button>
+                );
+              }
+
+              return (
                 <Link
                   key={item.id}
                   id={`tour-${item.id}`}
@@ -471,8 +561,57 @@ export const Sidebar = ({}: SidebarProps) => {
             })}
           </nav>
 
-          {/* کارت پروفایل پایین سایدبار */}
-          <div className="mt-auto pt-2 relative z-30 shrink-0">
+          {/* کارت وضعیت پلن فعلی + پروفایل پایین سایدبار */}
+          <div className="mt-auto pt-2 space-y-2.5 relative z-30 shrink-0">
+            {normalizedRole === "owner" && !isSubLoading && (
+              <Link
+                to="/subscription"
+                className={`block p-3 rounded-[20px] border transition-all hover:scale-[1.01] ${
+                  !subscription.hasActiveSubscription
+                    ? "bg-rose-50/90 border-rose-200 text-rose-800"
+                    : subscription.isTrial
+                      ? "bg-gradient-to-l from-orange-50 to-amber-50/80 border-orange-200/80 text-slate-800"
+                      : "bg-white/80 border-white text-slate-800 shadow-2xs"
+                }`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span
+                      className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 ${
+                        !subscription.hasActiveSubscription
+                          ? "bg-rose-500 text-white"
+                          : "bg-slate-900 text-amber-400"
+                      }`}
+                    >
+                      <Crown size={14} />
+                    </span>
+                    <div className="min-w-0">
+                      <span className="block text-[11px] font-black truncate">
+                        {!subscription.hasActiveSubscription
+                          ? subscription.isRevoked
+                            ? "اشتراک خلع شده"
+                            : "اشتراک منقضی"
+                          : subscription.isTrial
+                            ? "پلاس (تست رایگان)"
+                            : `پلن ${subscription.tierLabel}`}
+                      </span>
+                      <span className="block text-[10px] font-bold text-slate-500">
+                        {subscription.hasActiveSubscription
+                          ? `${subscription.daysRemaining.toLocaleString("fa-IR")} روز باقی‌مانده`
+                          : "تمدید / خرید اشتراک"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {subscription.tier !== "plus" && (
+                    <span className="text-[10px] font-black text-orange-600 bg-orange-100/80 px-2 py-0.5 rounded-lg shrink-0">
+                      ارتقا
+                    </span>
+                  )}
+                </div>
+              </Link>
+            )}
+
             <div className="bg-white/80 backdrop-blur-md p-2.5 rounded-[22px] shadow-2xs border border-white flex items-center justify-between gap-2">
               <div className="flex items-center gap-2.5 overflow-hidden">
                 <div className="w-10 h-10 rounded-[14px] bg-slate-900 flex items-center justify-center shrink-0 text-white font-black text-sm shadow-sm">
@@ -529,39 +668,53 @@ export const Sidebar = ({}: SidebarProps) => {
               <Lock size={32} className="text-slate-300 opacity-50" />
             </div>
           )}
-          {moreMobileItems.map((item) => (
-            <div
-              key={item.id}
-              onClick={() => {
-                if (isMenuLocked) {
-                  showMobileWarning();
-                  return;
-                }
-                setIsMobileMoreOpen(false);
-                navigate(item.path);
-              }}
-              className={`flex flex-col items-center gap-2 ${isMenuLocked ? "opacity-40" : "cursor-pointer"}`}
-            >
+          {moreMobileItems.map((item) => {
+            const isPlanLocked = !isMenuLocked && isItemPlanLocked(item);
+            return (
               <div
-                className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-colors ${
-                  location.pathname === item.path
-                    ? "bg-orange-50 text-orange-500 shadow-inner"
-                    : "bg-slate-100 text-slate-500"
+                key={item.id}
+                onClick={() => {
+                  if (isMenuLocked) {
+                    showMobileWarning();
+                    return;
+                  }
+                  setIsMobileMoreOpen(false);
+                  if (isPlanLocked) {
+                    triggerItemUpgrade(item);
+                    return;
+                  }
+                  navigate(item.path);
+                }}
+                className={`flex flex-col items-center gap-2 relative ${
+                  isMenuLocked ? "opacity-40" : "cursor-pointer"
                 }`}
               >
-                <item.icon size={20} strokeWidth={2.5} />
+                <div
+                  className={`relative w-12 h-12 rounded-2xl flex items-center justify-center transition-colors ${
+                    location.pathname === item.path
+                      ? "bg-orange-50 text-orange-500 shadow-inner"
+                      : "bg-slate-100 text-slate-500"
+                  }`}
+                >
+                  <item.icon size={20} strokeWidth={2.5} />
+                  {isPlanLocked && (
+                    <span className="absolute -top-1 -left-1 w-5 h-5 rounded-full bg-orange-500 text-white border-2 border-white flex items-center justify-center">
+                      <Lock size={10} strokeWidth={2.8} />
+                    </span>
+                  )}
+                </div>
+                <span
+                  className={`text-[11px] font-black text-center leading-tight ${
+                    location.pathname === item.path
+                      ? "text-orange-500"
+                      : "text-slate-600"
+                  }`}
+                >
+                  {item.name}
+                </span>
               </div>
-              <span
-                className={`text-[11px] font-black text-center leading-tight ${
-                  location.pathname === item.path
-                    ? "text-orange-500"
-                    : "text-slate-600"
-                }`}
-              >
-                {item.name}
-              </span>
-            </div>
-          ))}
+            );
+          })}
 
           <button
             type="button"
@@ -585,6 +738,7 @@ export const Sidebar = ({}: SidebarProps) => {
         {mainMobileItems.map((item) => {
           const isActive = location.pathname === item.path && !isMobileMoreOpen;
           const isDisabled = isMenuLocked && item.path !== "/dashboard";
+          const isPlanLocked = !isDisabled && isItemPlanLocked(item);
 
           return (
             <div
@@ -596,6 +750,10 @@ export const Sidebar = ({}: SidebarProps) => {
                   return;
                 }
                 setIsMobileMoreOpen(false);
+                if (isPlanLocked) {
+                  triggerItemUpgrade(item);
+                  return;
+                }
                 navigate(item.path);
               }}
               className={`relative flex items-center justify-center h-12 rounded-full transition-all duration-400 ease-out overflow-hidden ${
@@ -606,8 +764,8 @@ export const Sidebar = ({}: SidebarProps) => {
                   : "bg-transparent px-3"
               }`}
             >
-              {isDisabled && (
-                <div className="absolute top-1 right-1 w-2 h-2 bg-orange-400 rounded-full animate-pulse"></div>
+              {(isDisabled || isPlanLocked) && (
+                <div className="absolute top-1.5 right-1.5 w-2 h-2 bg-orange-400 rounded-full animate-pulse" />
               )}
               <item.icon
                 size={22}
@@ -640,7 +798,7 @@ export const Sidebar = ({}: SidebarProps) => {
             }`}
           >
             {isMenuLocked && (
-              <div className="absolute top-1 right-2 w-2 h-2 bg-orange-400 rounded-full animate-pulse"></div>
+              <div className="absolute top-1 right-2 w-2 h-2 bg-orange-400 rounded-full animate-pulse" />
             )}
             <MoreHorizontal
               size={24}

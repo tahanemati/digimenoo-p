@@ -4,12 +4,16 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.parsers import MultiPartParser, FormParser
-from rest_framework.permissions import IsAuthenticated , AllowAny
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.views import APIView
 
 from apps.accounts.models import User
 from apps.common.responses import api_success, api_error
 from apps.restaurants.views import get_user_restaurant
+from .entitlements import (
+    ensure_default_subscription_plans,
+    get_entitlements_for_owner,
+)
 from .models import (
     Wallet,
     WalletTransaction,
@@ -31,80 +35,6 @@ DESTINATION_CARD = {
 }
 
 
-def ensure_default_subscription_plans():
-    if SubscriptionPlan.objects.exists():
-        return
-
-    defaults = [
-        {
-            "tier": SubscriptionPlan.Tier.BASIC,
-            "name": "پایه",
-            "duration_months": 3,
-            "duration_days": 90,
-            "price": 450000,
-            "price_3m": 450000,
-            "price_6m": 800000,
-            "price_9m": 1100000,
-            "description": "شروعی عالی برای کافه‌ها و مجموعه‌های کوچک.",
-            "features": (
-                "ثبت تا ۵۰ آیتم منو\n"
-                "قالب منوی دیجیتال هوشمند\n"
-                "ساخت بارکد QR اختصاصی میزها\n"
-                "پشتیبانی آنلاین"
-            ),
-            "icon": "Package",
-            "badge_text": "",
-            "is_popular": False,
-            "sort_order": 1,
-        },
-        {
-            "tier": SubscriptionPlan.Tier.STANDARD,
-            "name": "استاندارد",
-            "duration_months": 3,
-            "duration_days": 90,
-            "price": 750000,
-            "price_3m": 750000,
-            "price_6m": 1400000,
-            "price_9m": 2000000,
-            "description": "ایده‌آل برای رستوران‌های رو به رشد با سفارش‌گیری زنده.",
-            "features": (
-                "ثبت آیتم و دسته‌بندی بی‌نهایت\n"
-                "شخصی‌سازی کامل رنگ، لوگو و قالب منو\n"
-                "سیستم رزرو آنلاین و وضعیت زنده میزها\n"
-                "درگاه پرداخت اختصاصی و کیف پول"
-            ),
-            "icon": "Store",
-            "badge_text": "محبوب‌ترین انتخاب",
-            "is_popular": True,
-            "sort_order": 2,
-        },
-        {
-            "tier": SubscriptionPlan.Tier.PLUS,
-            "name": "پلاس",
-            "duration_months": 3,
-            "duration_days": 90,
-            "price": 1200000,
-            "price_3m": 1200000,
-            "price_6m": 2200000,
-            "price_9m": 3100000,
-            "description": "امکانات کامل برای مجموعه‌های حرفه‌ای، صنعتی و شعب.",
-            "features": (
-                "تمامی امکانات پلن استاندارد\n"
-                "پنل زنده آشپزخانه (KDS) و مراحل پخت\n"
-                "تعریف نقش‌های پرسنل (صندوق‌دار، سرآشپز، گارسون)\n"
-                "گزارشات جامع مالی و چاپ صورت‌حساب رسمی"
-            ),
-            "icon": "Crown",
-            "badge_text": "کامل‌ترین بسته",
-            "is_popular": False,
-            "sort_order": 3,
-        },
-    ]
-
-    for item in defaults:
-        SubscriptionPlan.objects.create(**item)
-
-
 def get_or_create_user_wallet(user):
     target_owner = user if user.role == User.Role.OWNER else user.owner
     if not target_owner:
@@ -119,7 +49,9 @@ class WalletDetailView(APIView):
     def get(self, request):
         wallet = get_or_create_user_wallet(request.user)
         if not wallet:
-            return api_error("کیف پول یافت نشد.", status_code=status.HTTP_404_NOT_FOUND)
+            return api_error(
+                "کیف پول یافت نشد.", status_code=status.HTTP_404_NOT_FOUND
+            )
 
         active_card = PaymentCardSetting.objects.filter(is_active=True).first()
         card_data = (
@@ -146,7 +78,9 @@ class WalletTransactionListView(APIView):
     def get(self, request):
         wallet = get_or_create_user_wallet(request.user)
         if not wallet:
-            return api_error("کیف پول یافت نشد.", status_code=status.HTTP_404_NOT_FOUND)
+            return api_error(
+                "کیف پول یافت نشد.", status_code=status.HTTP_404_NOT_FOUND
+            )
 
         transactions = wallet.transactions.all()
         serializer = WalletTransactionSerializer(transactions, many=True)
@@ -166,7 +100,9 @@ class WalletTopUpReceiptView(APIView):
 
         wallet = get_or_create_user_wallet(request.user)
         if not wallet:
-            return api_error("کیف پول یافت نشد.", status_code=status.HTTP_404_NOT_FOUND)
+            return api_error(
+                "کیف پول یافت نشد.", status_code=status.HTTP_404_NOT_FOUND
+            )
 
         raw_amount = str(request.data.get("amount", "")).strip()
         try:
@@ -223,22 +159,32 @@ class CurrentSubscriptionView(APIView):
             )
 
         target_owner = (
-            request.user if request.user.role == User.Role.OWNER else request.user.owner
+            request.user
+            if request.user.role == User.Role.OWNER
+            else request.user.owner
         )
         wallet = get_or_create_user_wallet(request.user)
         wallet_balance = wallet.balance if wallet else 0
 
-        sub = UserSubscription.objects.filter(user=target_owner).first()
+        sub = (
+            UserSubscription.objects.select_related("plan")
+            .filter(user=target_owner)
+            .first()
+        )
+        entitlements = get_entitlements_for_owner(target_owner)
+
         if not sub:
             return api_success(
                 {
+                    **entitlements,
                     "hasSubscription": False,
                     "walletBalance": wallet_balance,
                 }
             )
 
         data = UserSubscriptionSerializer(sub).data
-        data["hasSubscription"] = True
+        data["hasSubscription"] = sub.is_active_now
+        data["hasActiveSubscription"] = sub.is_active_now
         data["walletBalance"] = wallet_balance
         return api_success(data)
 
@@ -316,14 +262,29 @@ class PurchaseSubscriptionView(APIView):
             )
 
             now = timezone.now()
-            sub = UserSubscription.objects.filter(user=request.user).first()
-            if sub and sub.expire_date > now:
+            sub = (
+                UserSubscription.objects.select_related("plan")
+                .filter(user=request.user)
+                .first()
+            )
+
+            # جمع شدن روزهای باقی‌مانده فقط در صورت تمدید هم‌سطح (غیرتست)
+            is_same_paid_tier = bool(
+                sub
+                and sub.is_active_now
+                and not sub.is_trial
+                and sub.plan
+                and sub.plan.tier == plan.tier
+            )
+
+            if is_same_paid_tier:
                 remaining_days = max(0, (sub.expire_date - now).days)
                 sub.plan = plan
                 sub.plan_name = plan_display_name
                 sub.expire_date = sub.expire_date + timedelta(days=duration_days)
                 sub.total_days = remaining_days + duration_days
                 sub.is_trial = False
+                sub.is_revoked = False
                 sub.save()
             elif sub:
                 sub.plan = plan
@@ -332,6 +293,7 @@ class PurchaseSubscriptionView(APIView):
                 sub.expire_date = now + timedelta(days=duration_days)
                 sub.total_days = duration_days
                 sub.is_trial = False
+                sub.is_revoked = False
                 sub.save()
             else:
                 sub = UserSubscription.objects.create(
@@ -342,10 +304,12 @@ class PurchaseSubscriptionView(APIView):
                     expire_date=now + timedelta(days=duration_days),
                     total_days=duration_days,
                     is_trial=False,
+                    is_revoked=False,
                 )
 
         sub_data = UserSubscriptionSerializer(sub).data
-        sub_data["hasSubscription"] = True
+        sub_data["hasSubscription"] = sub.is_active_now
+        sub_data["hasActiveSubscription"] = sub.is_active_now
         sub_data["walletBalance"] = wallet.balance
 
         return api_success(

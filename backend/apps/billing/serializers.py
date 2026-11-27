@@ -1,5 +1,8 @@
+import math
 from rest_framework import serializers
+from django.utils import timezone
 from .models import WalletTransaction, SubscriptionPlan, UserSubscription
+from .entitlements import TIER_ENTITLEMENTS
 
 
 class WalletTransactionSerializer(serializers.ModelSerializer):
@@ -40,6 +43,8 @@ class SubscriptionPlanSerializer(serializers.ModelSerializer):
     badgeText = serializers.CharField(source="badge_text")
     isPopular = serializers.BooleanField(source="is_popular")
     featuresList = serializers.SerializerMethodField()
+    maxTemplates = serializers.SerializerMethodField()
+    entitlements = serializers.SerializerMethodField()
 
     class Meta:
         model = SubscriptionPlan
@@ -55,6 +60,8 @@ class SubscriptionPlanSerializer(serializers.ModelSerializer):
             "price9m",
             "description",
             "featuresList",
+            "maxTemplates",
+            "entitlements",
             "icon",
             "badgeText",
             "isPopular",
@@ -74,6 +81,16 @@ class SubscriptionPlanSerializer(serializers.ModelSerializer):
             return []
         return [line.strip() for line in obj.features.splitlines() if line.strip()]
 
+    def get_maxTemplates(self, obj):
+        tier_key = str(obj.tier or "basic").strip().lower()
+        spec = TIER_ENTITLEMENTS.get(tier_key, TIER_ENTITLEMENTS["basic"])
+        return spec["max_templates"]
+
+    def get_entitlements(self, obj):
+        tier_key = str(obj.tier or "basic").strip().lower()
+        spec = TIER_ENTITLEMENTS.get(tier_key, TIER_ENTITLEMENTS["basic"])
+        return spec["features"]
+
 
 class UserSubscriptionSerializer(serializers.ModelSerializer):
     planId = serializers.SerializerMethodField()
@@ -83,7 +100,14 @@ class UserSubscriptionSerializer(serializers.ModelSerializer):
     totalDays = serializers.IntegerField(source="total_days")
     durationDays = serializers.IntegerField(source="total_days")
     isTrial = serializers.BooleanField(source="is_trial")
+    isRevoked = serializers.BooleanField(source="is_revoked")
+    isActive = serializers.SerializerMethodField()
+    isExpired = serializers.SerializerMethodField()
+    daysRemaining = serializers.SerializerMethodField()
     expireDate = serializers.DateTimeField(source="expire_date")
+    allowedTemplates = serializers.SerializerMethodField()
+    maxTemplates = serializers.SerializerMethodField()
+    features = serializers.SerializerMethodField()
 
     class Meta:
         model = UserSubscription
@@ -96,11 +120,46 @@ class UserSubscriptionSerializer(serializers.ModelSerializer):
             "totalDays",
             "durationDays",
             "isTrial",
+            "isRevoked",
+            "isActive",
+            "isExpired",
+            "daysRemaining",
             "expireDate",
+            "maxTemplates",
+            "allowedTemplates",
+            "features",
         ]
 
     def get_planId(self, obj):
         return str(obj.plan_id) if obj.plan_id else None
 
+    def get_isActive(self, obj):
+        return obj.is_active_now
+
+    def get_isExpired(self, obj):
+        return obj.expire_date <= timezone.now()
+
+    def get_daysRemaining(self, obj):
+        if not obj.is_active_now:
+            return 0
+        remaining_seconds = max(0, (obj.expire_date - timezone.now()).total_seconds())
+        return math.ceil(remaining_seconds / 86400)
+
     def get_tier(self, obj):
-        return obj.plan.tier if obj.plan else None
+        if not obj.is_active_now:
+            return "none"
+        if obj.plan and obj.plan.tier:
+            return str(obj.plan.tier).strip().lower()
+        return SubscriptionPlan.Tier.PLUS if obj.is_trial else SubscriptionPlan.Tier.BASIC
+
+    def _get_spec(self, obj):
+        return TIER_ENTITLEMENTS.get(self.get_tier(obj), TIER_ENTITLEMENTS["none"])
+
+    def get_maxTemplates(self, obj):
+        return self._get_spec(obj)["max_templates"]
+
+    def get_allowedTemplates(self, obj):
+        return self._get_spec(obj)["allowed_templates"]
+
+    def get_features(self, obj):
+        return self._get_spec(obj)["features"]

@@ -1,4 +1,5 @@
 import axios from "axios";
+import { triggerGlobalUpgradeModal } from "../context/SubscriptionContext";
 
 // ==========================================
 // 🔴 متغیرهای پایه (تغییر در زمان پابلیش)
@@ -65,15 +66,27 @@ apiClient.interceptors.response.use(
 
     // استخراج ارورهای دقیق جنگو / DRF
     let errorMessage = "خطا در ارتباط با سرور";
+    const resData = error.response?.data;
 
-    if (error.response?.data) {
-      const resData = error.response.data;
-      if (resData.data && typeof resData.data === "object") {
+    if (resData) {
+      if (resData.data?.code === "UPGRADE_REQUIRED") {
+        errorMessage =
+          resData.message ||
+          "برای استفاده از این قابلیت نیاز به ارتقای اشتراک دارید.";
+
+        if (!isAuthRoute) {
+          triggerGlobalUpgradeModal({
+            message: errorMessage,
+            requiredTier: resData.data.requiredTier || "plus",
+            feature: resData.data.feature,
+          });
+        }
+      } else if (resData.data && typeof resData.data === "object") {
         const firstKey = Object.keys(resData.data)[0];
         const firstVal = resData.data[firstKey];
         if (Array.isArray(firstVal) && firstVal.length > 0) {
           errorMessage = firstVal[0];
-        } else if (typeof firstVal === "string") {
+        } else if (typeof firstVal === "string" && !resData.message) {
           errorMessage = firstVal;
         } else if (resData.message) {
           errorMessage = resData.message;
@@ -337,6 +350,7 @@ export const menuApi = {
     );
   },
 };
+
 // =======================
 // سفارشات، صندوق و آشپزخانه
 // =======================
@@ -460,7 +474,7 @@ export const subscriptionApi = {
     return res.data;
   },
   purchasePlan: async (planId: string, durationMonths?: number) => {
-    const res = await apiClient.post("/subscriptions/purchase/", {
+    const res = await apiClient.post("/billing/subscription/purchase/", {
       planId,
       durationMonths,
     });

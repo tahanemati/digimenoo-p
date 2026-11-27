@@ -25,13 +25,30 @@ import {
   Check,
   Smartphone,
   RefreshCw,
+  Lock,
+  Crown,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { venuesApi } from "../service/api";
+import {
+  useSubscription,
+  normalizeTemplateCode,
+  resolveTemplateRequiredTier,
+  type FeatureKey,
+  type PlanTier,
+} from "../context/SubscriptionContext";
 
 type SettingsTab = "general" | "features" | "branding";
 
-// صرفاً گرادیانت پس‌زمینه کارت در صورت نبود تصویر بندانگشتی (بدون هیچ برچسب متنی)
+const PUBLIC_MENU_ORIGIN = "https://toranjmenu.ir";
+
+const TIER_LABELS: Record<Exclude<PlanTier, "none">, string> = {
+  basic: "پایه",
+  standard: "استاندارد",
+  plus: "پلاس",
+};
+
+// گرادیانت پس‌زمینه کارت در صورت نبود تصویر بندانگشتی (۱۵ قالب کامل)
 const getTemplateSwatch = (code: string, index: number) => {
   const numMatch = String(code || "").match(/\d+/);
   const idx = numMatch ? parseInt(numMatch[0], 10) : index + 1;
@@ -50,25 +67,23 @@ const getTemplateSwatch = (code: string, index: number) => {
     "from-[#09090F] via-[#00F0FF] to-[#FF2A85]",
     "from-[#1D1D1F] to-[#0071E3]",
     "from-[#09090D] via-[#1E202B] to-[#E5B869]",
+    "from-[#143B2E] via-[#2D6A4F] to-[#C96442]",
+    "from-[#070B18] via-[#1D4ED8] to-[#FF6B4A]",
   ];
 
   return swatches[(Math.max(1, idx) - 1) % swatches.length];
 };
 
-const normalizeThemeCode = (value: unknown, fallback = "template_1") => {
-  const cleaned = String(value || "")
-    .trim()
-    .toLowerCase()
-    .replace(/[\s-]+/g, "_");
-  if (!cleaned) return fallback;
-  if (/^\d+$/.test(cleaned)) return `template_${cleaned}`;
-  if (/^template\d+$/.test(cleaned)) {
-    return cleaned.replace(/^template(\d+)$/, "template_$1");
-  }
-  return cleaned;
-};
-
 export const VenueSettings: React.FC = () => {
+  const {
+    subscription,
+    isLoading: isSubLoading,
+    can,
+    canUseTemplate,
+    openUpgradeModal,
+    refreshSubscription,
+  } = useSubscription();
+
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -125,7 +140,7 @@ export const VenueSettings: React.FC = () => {
         const response = await venuesApi.getMyVenue();
         const venueData = response?.data?.data || response?.data || response;
 
-        const fallbackTemplates = Array.from({ length: 13 }, (_, i) => ({
+        const fallbackTemplates = Array.from({ length: 15 }, (_, i) => ({
           code: `template_${i + 1}`,
           name: `قالب منو ${(i + 1).toLocaleString("fa-IR")}`,
           thumbnailUrl: "",
@@ -144,18 +159,28 @@ export const VenueSettings: React.FC = () => {
             ? templatesData
             : fallbackTemplates;
 
-        const finalTemplates = rawTemplates.map((tpl: any, idx: number) => ({
-          ...tpl,
-          code: normalizeThemeCode(
-            tpl?.code || tpl?.Code || tpl?.slug || tpl?.id,
-            `template_${idx + 1}`,
-          ),
-          name:
-            tpl?.name ||
-            tpl?.Name ||
-            `قالب منو ${(idx + 1).toLocaleString("fa-IR")}`,
-          thumbnailUrl: tpl?.thumbnailUrl || tpl?.ThumbnailUrl || "",
-        }));
+        const finalTemplates = rawTemplates.map((tpl: any, idx: number) => {
+          const code = normalizeTemplateCode(
+            tpl?.code ||
+              tpl?.Code ||
+              tpl?.slug ||
+              tpl?.id ||
+              `template_${idx + 1}`,
+          );
+          const reqTier: Exclude<PlanTier, "none"> =
+            tpl?.requiredTier || resolveTemplateRequiredTier(code);
+          return {
+            ...tpl,
+            code,
+            name:
+              tpl?.name ||
+              tpl?.Name ||
+              `قالب منو ${(idx + 1).toLocaleString("fa-IR")}`,
+            thumbnailUrl: tpl?.thumbnailUrl || tpl?.ThumbnailUrl || "",
+            requiredTier: reqTier,
+            requiredTierLabel: tpl?.requiredTierLabel || TIER_LABELS[reqTier],
+          };
+        });
 
         setTemplates(finalTemplates);
 
@@ -192,12 +217,13 @@ export const VenueSettings: React.FC = () => {
         );
         setIsBilingual(venueData.bilingual ?? venueData.Bilingual ?? false);
 
-        const savedTheme = normalizeThemeCode(
+        const savedTheme = normalizeTemplateCode(
           venueData.theme ||
             venueData.Theme ||
             venueData.template ||
-            venueData.templateCode,
-          finalTemplates[0]?.code || "template_1",
+            venueData.templateCode ||
+            finalTemplates[0]?.code ||
+            "template_1",
         );
         setTheme(savedTheme);
 
@@ -211,6 +237,9 @@ export const VenueSettings: React.FC = () => {
           venueData.has_completed_settings === true ||
             venueData.HasCompletedSettings === true,
         );
+
+        // همگام‌سازی کانتکست اشتراک با آخرین وضعیت سرور
+        refreshSubscription();
       } catch (err: any) {
         console.error("❌ خطا در دریافت اطلاعات مجموعه:", err.message);
         setPageError(
@@ -222,21 +251,87 @@ export const VenueSettings: React.FC = () => {
       }
     };
     fetchData();
-  }, []);
+  }, [refreshSubscription]);
 
   // هر بار که قالب یا رفرش تغییر کند، اسپینر لودینگ iframe نمایش داده شود
   useEffect(() => {
     setIsIframeLoading(true);
   }, [englishName, theme, previewRefreshKey]);
 
+  const isTemplateLocked = (tpl: any): boolean => {
+    if (isSubLoading) return Boolean(tpl?.isLocked);
+    if (!subscription.hasActiveSubscription) return true;
+    if (typeof tpl?.isLocked === "boolean") {
+      return tpl.isLocked || !canUseTemplate(tpl.code);
+    }
+    return !canUseTemplate(tpl.code);
+  };
+
+  const selectedTemplateObj = templates.find((t) => t.code === theme);
+  const selectedThemeRequiredTier: Exclude<PlanTier, "none"> =
+    selectedTemplateObj?.requiredTier || resolveTemplateRequiredTier(theme);
+  const isSelectedThemeLocked = selectedTemplateObj
+    ? isTemplateLocked(selectedTemplateObj)
+    : !isSubLoading && !canUseTemplate(theme);
+
+  const canBilingual = can("bilingual");
+  const canOnlineOrdering = can("onlineOrdering");
+  const canCallWaiter = can("callWaiter");
+  const canCallChef = can("callChef");
+
+  const effectiveBilingual = canBilingual && isBilingual;
+  const effectiveOrdering = canOnlineOrdering && isOrderingEnabled;
+  const effectiveWaiter = canCallWaiter && isWaiterEnabled;
+  const effectiveChef = canCallChef && isChefRequestEnabled;
+
+  const publicMenuUrl = `${PUBLIC_MENU_ORIGIN}/${englishName}`;
+
   const handleCopyMenuUrl = () => {
-    const url = `${window.location.origin}/${englishName}`;
-    navigator.clipboard?.writeText(url);
+    navigator.clipboard?.writeText(publicMenuUrl);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2000);
   };
 
+  const handleToggleFeature = (
+    featureKey: FeatureKey,
+    requiredTier: Exclude<PlanTier, "none">,
+    title: string,
+    message: string,
+    setter: React.Dispatch<React.SetStateAction<boolean>>,
+  ) => {
+    if (!can(featureKey)) {
+      openUpgradeModal({
+        title,
+        message,
+        requiredTier,
+        feature: featureKey,
+      });
+      return;
+    }
+    setter((prev) => !prev);
+  };
+
   const handleFinalSubmit = async () => {
+    if (!subscription.hasActiveSubscription) {
+      openUpgradeModal({
+        requiredTier: "basic",
+        message:
+          "اشتراک مجموعه شما فعال نیست. برای ذخیره تنظیمات و انتشار منو، ابتدا اشتراک خود را فعال کنید.",
+      });
+      return;
+    }
+
+    if (isSelectedThemeLocked) {
+      const reqLabel = TIER_LABELS[selectedThemeRequiredTier];
+      openUpgradeModal({
+        title: `فعال‌سازی ${selectedTemplateObj?.name || "این قالب"}`,
+        message: `قالب انتخاب‌شده ویژه پلن «${reqLabel}» به بالا است. برای ذخیره این قالب پلن خود را ارتقا دهید یا یکی از قالب‌های باز پلن فعلی را انتخاب کنید.`,
+        requiredTier: selectedThemeRequiredTier,
+        feature: "template",
+      });
+      return;
+    }
+
     if (!aboutUsFa.trim()) {
       setDescError(true);
       setActiveTab("general");
@@ -245,14 +340,14 @@ export const VenueSettings: React.FC = () => {
 
     setIsSaving(true);
     try {
-      // ۱. آپدیت تنظیمات پایه و دوزبانه
+      // ۱. آپدیت تنظیمات پایه و دوزبانه (با رعایت دقیق دسترسی‌های پلن فعال)
       await venuesApi.updateSettings({
-        orderingEnabled: isOrderingEnabled,
-        bilingual: isBilingual,
-        callWaiterEnabled: isWaiterEnabled,
-        callChefEnabled: isChefRequestEnabled,
+        orderingEnabled: effectiveOrdering,
+        bilingual: effectiveBilingual,
+        callWaiterEnabled: effectiveWaiter,
+        callChefEnabled: effectiveChef,
         aboutUsFa: aboutUsFa.trim(),
-        aboutUsEn: isBilingual ? aboutUsEn.trim() : "",
+        aboutUsEn: effectiveBilingual ? aboutUsEn.trim() : "",
       });
 
       // ۲. آپلود لوگو (فقط در صورت انتخاب فایل جدید)
@@ -270,9 +365,8 @@ export const VenueSettings: React.FC = () => {
         finalLogoUrl = "";
       }
 
-      const finalThemeCode = normalizeThemeCode(
-        theme,
-        templates[0]?.code || "template_1",
+      const finalThemeCode = normalizeTemplateCode(
+        theme || templates[0]?.code || "template_1",
       );
 
       // ۳. آپدیت برندینگ (قالب و مسیر نهایی لوگو)
@@ -294,7 +388,10 @@ export const VenueSettings: React.FC = () => {
       setShowQRPopup(true);
     } catch (err: any) {
       console.error("خطا در ذخیره اطلاعات:", err);
-      alert(err.message || "خطا در ارتباط با سرور. لطفاً مجدداً تلاش کنید.");
+      // اگر خطا از نوع UPGRADE_REQUIRED بود، مودال ارتقا خودکار از api.ts باز شده است
+      if (err?.response?.data?.data?.code !== "UPGRADE_REQUIRED") {
+        alert(err.message || "خطا در ارتباط با سرور. لطفاً مجدداً تلاش کنید.");
+      }
     } finally {
       setIsSaving(false);
     }
@@ -354,40 +451,90 @@ export const VenueSettings: React.FC = () => {
     ? templates
     : templates.slice(0, 6);
 
-  // آدرس واقعی منو برای بارگذاری درون قاب گوشی (مثلاً http://localhost:5173/slug)
+  // آدرس واقعی منو روی دامنه اصلی toranjmenu.ir/slug برای نمایش داخل قاب گوشی
   const livePreviewUrl = englishName
-    ? `${window.location.origin}/${englishName}?previewTheme=${encodeURIComponent(theme)}&v=${previewRefreshKey}`
+    ? `${PUBLIC_MENU_ORIGIN}/${englishName}?previewTheme=${encodeURIComponent(theme)}&v=${previewRefreshKey}`
     : "";
 
-  const featureCards = [
+  const featureCards: {
+    key: string;
+    featureKey: FeatureKey;
+    requiredTier: Exclude<PlanTier, "none">;
+    enabled: boolean;
+    locked: boolean;
+    onClick: () => void;
+    icon: any;
+    title: string;
+    desc: string;
+  }[] = [
     {
       key: "ordering",
-      enabled: isOrderingEnabled,
-      toggle: () => setIsOrderingEnabled(!isOrderingEnabled),
+      featureKey: "onlineOrdering",
+      requiredTier: "standard",
+      enabled: effectiveOrdering,
+      locked: !canOnlineOrdering,
+      onClick: () =>
+        handleToggleFeature(
+          "onlineOrdering",
+          "standard",
+          "سفارش‌دهی آنلاین از منو",
+          "قابلیت ثبت سفارش مستقیم مشتریان از منوی دیجیتال در پلن استاندارد و پلاس فعال است.",
+          setIsOrderingEnabled,
+        ),
       icon: ShoppingBag,
       title: "سفارش‌دهی آنلاین سر میز",
       desc: "مشتریان بدون نیاز به گارسون آیتم‌ها را به سبد خرید اضافه و ثبت می‌کنند.",
     },
     {
       key: "bilingual",
-      enabled: isBilingual,
-      toggle: () => setIsBilingual(!isBilingual),
+      featureKey: "bilingual",
+      requiredTier: "standard",
+      enabled: effectiveBilingual,
+      locked: !canBilingual,
+      onClick: () =>
+        handleToggleFeature(
+          "bilingual",
+          "standard",
+          "منوی دو زبانه (فارسی / انگلیسی)",
+          "نمایش منو به دو زبان فارسی و انگلیسی در پلن استاندارد و پلاس در دسترس است.",
+          setIsBilingual,
+        ),
       icon: Globe,
       title: "منوی دو زبانه (فارسی / انگلیسی)",
       desc: "نمایش دکمه تغییر زبان در منو برای مهمانان و گردشگران خارجی.",
     },
     {
       key: "waiter",
-      enabled: isWaiterEnabled,
-      toggle: () => setIsWaiterEnabled(!isWaiterEnabled),
+      featureKey: "callWaiter",
+      requiredTier: "standard",
+      enabled: effectiveWaiter,
+      locked: !canCallWaiter,
+      onClick: () =>
+        handleToggleFeature(
+          "callWaiter",
+          "standard",
+          "درخواست گارسون سر میز",
+          "قابلیت احضار سالن‌دار با ذکر شماره میز در پلن استاندارد و پلاس فعال است.",
+          setIsWaiterEnabled,
+        ),
       icon: BellRing,
       title: "دکمه احضار سالن‌دار",
       desc: "ارسال اعلان فوری به پنل گارسون با ذکر شماره میز مشتری.",
     },
     {
       key: "chef",
-      enabled: isChefRequestEnabled,
-      toggle: () => setIsChefRequestEnabled(!isChefRequestEnabled),
+      featureKey: "callChef",
+      requiredTier: "standard",
+      enabled: effectiveChef,
+      locked: !canCallChef,
+      onClick: () =>
+        handleToggleFeature(
+          "callChef",
+          "standard",
+          "درخواست و یادداشت به سرآشپز",
+          "ارسال مستقیم یادداشت و درخواست پخت به آشپزخانه در پلن استاندارد و پلاس فعال است.",
+          setIsChefRequestEnabled,
+        ),
       icon: ChefHat,
       title: "یادداشت اختصاصی به سرآشپز",
       desc: "امکان ارسال پیام یا درخواست ویژه پخت مستقیماً به آشپزخانه.",
@@ -432,7 +579,7 @@ export const VenueSettings: React.FC = () => {
 
           <div className="flex flex-wrap items-center gap-2.5">
             <a
-              href={`/${englishName}`}
+              href={publicMenuUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/80 px-4 py-3 rounded-2xl font-black text-xs sm:text-sm flex items-center gap-2 shadow-2xs transition-all"
@@ -445,15 +592,25 @@ export const VenueSettings: React.FC = () => {
               type="button"
               disabled={isSaving || !theme}
               onClick={handleFinalSubmit}
-              className="bg-slate-900 hover:bg-orange-500 disabled:bg-slate-300 text-white px-6 py-3 rounded-2xl font-black text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-slate-900/15 transition-all active:scale-95"
+              className={`px-6 py-3 rounded-2xl font-black text-xs sm:text-sm flex items-center gap-2 shadow-lg transition-all active:scale-95 disabled:bg-slate-300 ${
+                isSelectedThemeLocked
+                  ? "bg-orange-500 hover:bg-orange-600 text-white shadow-orange-500/20"
+                  : "bg-slate-900 hover:bg-orange-500 text-white shadow-slate-900/15"
+              }`}
             >
               {isSaving ? (
                 <Loader2 className="animate-spin" size={18} />
+              ) : isSelectedThemeLocked ? (
+                <Crown size={17} strokeWidth={2.4} />
               ) : (
                 <Save size={17} strokeWidth={2.5} />
               )}
               <span>
-                {isAlreadySetup ? "ذخیره تغییرات" : "انتشار منو در ترنج"}
+                {isSelectedThemeLocked
+                  ? `ارتقا به پلن ${TIER_LABELS[selectedThemeRequiredTier]} برای فعال‌سازی`
+                  : isAlreadySetup
+                    ? "ذخیره تغییرات"
+                    : "انتشار منو در ترنج"}
               </span>
             </button>
           </div>
@@ -487,7 +644,7 @@ export const VenueSettings: React.FC = () => {
                       className="text-xs font-mono font-bold text-orange-600 bg-orange-50 px-2.5 py-0.5 rounded-lg border border-orange-100 truncate"
                       dir="ltr"
                     >
-                      {window.location.host}/{englishName}
+                      toranjmenu.ir/{englishName}
                     </span>
                     <button
                       type="button"
@@ -609,16 +766,30 @@ export const VenueSettings: React.FC = () => {
                   )}
                 </div>
 
-                {/* باکس فعال‌سازی منوی دوزبانه */}
-                <div className="bg-slate-50/80 border border-slate-200/70 rounded-2xl p-4 sm:p-5">
+                {/* باکس فعال‌سازی منوی دوزبانه (قفل در پلن پایه) */}
+                <div
+                  className={`border rounded-2xl p-4 sm:p-5 transition-colors ${
+                    !canBilingual
+                      ? "bg-slate-50/60 border-slate-200/60"
+                      : "bg-slate-50/80 border-slate-200/70"
+                  }`}
+                >
                   <div
-                    onClick={() => setIsBilingual(!isBilingual)}
+                    onClick={() =>
+                      handleToggleFeature(
+                        "bilingual",
+                        "standard",
+                        "منوی دو زبانه (فارسی / انگلیسی)",
+                        "پشتیبانی از زبان انگلیسی و نمایش منوی دو زبانه در پلن استاندارد و پلاس فعال است.",
+                        setIsBilingual,
+                      )
+                    }
                     className="flex items-center justify-between gap-4 cursor-pointer"
                   >
                     <div className="flex items-center gap-3.5">
                       <div
                         className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 transition-colors ${
-                          isBilingual
+                          effectiveBilingual
                             ? "bg-blue-500 text-white shadow-md shadow-blue-500/20"
                             : "bg-white text-slate-400 border border-slate-200"
                         }`}
@@ -626,28 +797,42 @@ export const VenueSettings: React.FC = () => {
                         <Languages size={21} />
                       </div>
                       <div>
-                        <h4 className="font-black text-sm text-slate-900">
-                          پشتیبانی از زبان انگلیسی (منوی دوزبانه)
-                        </h4>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h4 className="font-black text-sm text-slate-900">
+                            پشتیبانی از زبان انگلیسی (منوی دوزبانه)
+                          </h4>
+                          {!canBilingual && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-50 border border-orange-200/70 text-orange-600 text-[10px] font-black">
+                              <Lock size={10} strokeWidth={2.6} />
+                              استاندارد
+                            </span>
+                          )}
+                        </div>
                         <p className="text-xs font-bold text-slate-400 mt-0.5">
                           فعال‌سازی نمایش توضیحات و نام محصولات به زبان انگلیسی
                         </p>
                       </div>
                     </div>
 
-                    <div
-                      dir="ltr"
-                      className={`w-12 h-7 rounded-full p-1 transition-colors flex items-center shrink-0 ${
-                        isBilingual
-                          ? "bg-emerald-500 justify-end"
-                          : "bg-slate-300 justify-start"
-                      }`}
-                    >
-                      <span className="w-5 h-5 rounded-full bg-white shadow-sm block" />
-                    </div>
+                    {!canBilingual ? (
+                      <span className="w-9 h-9 rounded-xl bg-orange-50 text-orange-500 flex items-center justify-center shrink-0">
+                        <Lock size={16} />
+                      </span>
+                    ) : (
+                      <div
+                        dir="ltr"
+                        className={`w-12 h-7 rounded-full p-1 transition-colors flex items-center shrink-0 ${
+                          effectiveBilingual
+                            ? "bg-emerald-500 justify-end"
+                            : "bg-slate-300 justify-start"
+                        }`}
+                      >
+                        <span className="w-5 h-5 rounded-full bg-white shadow-sm block" />
+                      </div>
+                    )}
                   </div>
 
-                  {isBilingual && (
+                  {effectiveBilingual && (
                     <div className="mt-5 pt-5 border-t border-slate-200/70 animate-in fade-in duration-300">
                       <label
                         className="block text-xs font-black text-slate-600 mb-2 text-left"
@@ -689,14 +874,19 @@ export const VenueSettings: React.FC = () => {
             {/* ================= محتوای تب ۲: امکانات هوشمند سالن ================= */}
             {activeTab === "features" && (
               <div className="bg-white/90 backdrop-blur-xl border border-white rounded-[32px] p-6 sm:p-8 shadow-[0_12px_40px_rgba(0,0,0,0.03)] space-y-5 animate-in fade-in duration-300">
-                <div>
-                  <h3 className="text-lg font-black text-slate-900">
-                    امکانات تعاملی منوی مشتریان
-                  </h3>
-                  <p className="text-xs font-bold text-slate-400 mt-0.5">
-                    قابلیت‌های مورد نیاز سالن و سفارش‌گیری را فعال یا غیرفعال
-                    کنید
-                  </p>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-lg font-black text-slate-900">
+                      امکانات تعاملی منوی مشتریان
+                    </h3>
+                    <p className="text-xs font-bold text-slate-400 mt-0.5">
+                      قابلیت‌های مورد نیاز سالن و سفارش‌گیری را فعال یا غیرفعال
+                      کنید
+                    </p>
+                  </div>
+                  <span className="text-[11px] font-black bg-slate-100 text-slate-600 px-3 py-1 rounded-full">
+                    پلن فعلی: {subscription.tierLabel}
+                  </span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -705,34 +895,45 @@ export const VenueSettings: React.FC = () => {
                     return (
                       <div
                         key={item.key}
-                        onClick={item.toggle}
-                        className={`cursor-pointer rounded-[26px] p-5 border-2 transition-all flex flex-col justify-between gap-4 ${
-                          item.enabled
-                            ? "bg-orange-50/40 border-orange-500 shadow-sm"
-                            : "bg-slate-50/70 border-slate-200/70 hover:bg-white"
+                        onClick={item.onClick}
+                        className={`cursor-pointer rounded-[26px] p-5 border-2 transition-all flex flex-col justify-between gap-4 relative ${
+                          item.locked
+                            ? "bg-slate-50/60 border-slate-200/70 hover:border-orange-300"
+                            : item.enabled
+                              ? "bg-orange-50/40 border-orange-500 shadow-sm"
+                              : "bg-slate-50/70 border-slate-200/70 hover:bg-white"
                         }`}
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div
                             className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 transition-colors ${
-                              item.enabled
-                                ? "bg-orange-500 text-white shadow-md shadow-orange-500/20"
-                                : "bg-white text-slate-400 border border-slate-200"
+                              item.locked
+                                ? "bg-slate-100 text-slate-400 border border-slate-200"
+                                : item.enabled
+                                  ? "bg-orange-500 text-white shadow-md shadow-orange-500/20"
+                                  : "bg-white text-slate-400 border border-slate-200"
                             }`}
                           >
                             <FeatureIcon size={21} />
                           </div>
 
-                          <div
-                            dir="ltr"
-                            className={`w-11 h-6 rounded-full p-0.5 transition-colors flex items-center ${
-                              item.enabled
-                                ? "bg-emerald-500 justify-end"
-                                : "bg-slate-300 justify-start"
-                            }`}
-                          >
-                            <span className="w-5 h-5 rounded-full bg-white shadow-sm block" />
-                          </div>
+                          {item.locked ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-orange-50 border border-orange-200/80 text-orange-600 text-[10px] font-black">
+                              <Lock size={11} strokeWidth={2.6} />
+                              پلن {TIER_LABELS[item.requiredTier]}
+                            </span>
+                          ) : (
+                            <div
+                              dir="ltr"
+                              className={`w-11 h-6 rounded-full p-0.5 transition-colors flex items-center ${
+                                item.enabled
+                                  ? "bg-emerald-500 justify-end"
+                                  : "bg-slate-300 justify-start"
+                              }`}
+                            >
+                              <span className="w-5 h-5 rounded-full bg-white shadow-sm block" />
+                            </div>
+                          )}
                         </div>
 
                         <div>
@@ -839,30 +1040,65 @@ export const VenueSettings: React.FC = () => {
                   </div>
                 </div>
 
-                {/* انتخاب قالب منو (بدون برچسب‌های ویژگی ظاهری) */}
+                {/* انتخاب قالب منو (همراه با وضعیت قفل پلن‌ها و پیش‌نمایش آزاد) */}
                 <div>
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
                     <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full bg-emerald-500" />
                       انتخاب قالب ظاهری منو
                     </h3>
-                    <span className="text-xs font-black text-slate-400 bg-slate-100 px-2.5 py-1 rounded-lg">
-                      {templates.length.toLocaleString("fa-IR")} قالب آماده
+                    <span className="text-xs font-black text-slate-500 bg-slate-100 px-3 py-1 rounded-lg">
+                      دسترسی پلن {subscription.tierLabel}:{" "}
+                      {subscription.maxTemplates.toLocaleString("fa-IR")} از{" "}
+                      {templates.length.toLocaleString("fa-IR")} قالب
                     </span>
                   </div>
+
+                  {isSelectedThemeLocked && (
+                    <div className="mb-4 bg-orange-50/90 border border-orange-200/80 rounded-2xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5 text-xs font-bold text-orange-900">
+                        <Lock size={15} className="text-orange-500 shrink-0" />
+                        <span>
+                          در حال پیش‌نمایش{" "}
+                          <strong>{selectedTemplateObj?.name}</strong> هستید؛
+                          ذخیره و فعال‌سازی این قالب نیازمند پلن{" "}
+                          <strong>
+                            {TIER_LABELS[selectedThemeRequiredTier]}
+                          </strong>{" "}
+                          است.
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          openUpgradeModal({
+                            title: `فعال‌سازی ${selectedTemplateObj?.name || "قالب انتخابی"}`,
+                            requiredTier: selectedThemeRequiredTier,
+                            feature: "template",
+                          })
+                        }
+                        className="bg-orange-500 hover:bg-orange-600 text-white px-3.5 py-2 rounded-xl text-[11px] font-black shrink-0 self-end sm:self-center transition-colors"
+                      >
+                        ارتقای پلن
+                      </button>
+                    </div>
+                  )}
 
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5">
                     {displayedTemplates.map((tpl, idx) => {
                       const isSelected = theme === tpl.code;
+                      const isLocked = isTemplateLocked(tpl);
                       const swatch = getTemplateSwatch(tpl.code, idx);
 
                       return (
                         <div
                           key={tpl.code}
                           onClick={() => setTheme(tpl.code)}
-                          className={`cursor-pointer rounded-[24px] p-2.5 border-2 transition-all ${
+                          className={`cursor-pointer rounded-[24px] p-2.5 border-2 transition-all relative ${
                             isSelected
-                              ? "bg-slate-900 text-white border-slate-900 shadow-lg scale-[1.02]"
+                              ? isLocked
+                                ? "bg-orange-50/50 text-slate-900 border-orange-500 shadow-md scale-[1.02]"
+                                : "bg-slate-900 text-white border-slate-900 shadow-lg scale-[1.02]"
                               : "bg-white text-slate-800 border-slate-100 hover:border-orange-200"
                           }`}
                         >
@@ -871,11 +1107,13 @@ export const VenueSettings: React.FC = () => {
                               <img
                                 src={getFullImageUrl(tpl.thumbnailUrl)}
                                 alt={tpl.name}
-                                className="w-full h-full object-cover"
+                                className={`w-full h-full object-cover ${isLocked ? "opacity-85" : ""}`}
                               />
                             ) : (
                               <div
-                                className={`w-full h-full bg-gradient-to-br ${swatch} p-3 flex flex-col justify-between`}
+                                className={`w-full h-full bg-gradient-to-br ${swatch} p-3 flex flex-col justify-between ${
+                                  isLocked ? "opacity-85" : ""
+                                }`}
                               >
                                 <span className="w-5 h-5 rounded-md bg-white/25 block" />
                                 <div className="space-y-1.5">
@@ -884,18 +1122,37 @@ export const VenueSettings: React.FC = () => {
                                 </div>
                               </div>
                             )}
+
+                            {isLocked && (
+                              <div className="absolute top-2 left-2 bg-slate-950/80 backdrop-blur-md text-amber-300 border border-white/15 px-2 py-0.5 rounded-full text-[10px] font-black flex items-center gap-1">
+                                <Lock size={10} strokeWidth={2.6} />
+                                <span>{tpl.requiredTierLabel}</span>
+                              </div>
+                            )}
                           </div>
 
-                          <div className="flex items-center justify-between px-1">
+                          <div className="flex items-center justify-between px-1 gap-1">
                             <span className="text-xs font-black truncate">
                               {tpl.name}
                             </span>
-                            {isSelected && (
-                              <CheckCircle2
-                                size={16}
-                                className="text-orange-400 shrink-0"
+                            {isSelected ? (
+                              isLocked ? (
+                                <Crown
+                                  size={15}
+                                  className="text-orange-500 shrink-0"
+                                />
+                              ) : (
+                                <CheckCircle2
+                                  size={16}
+                                  className="text-orange-400 shrink-0"
+                                />
+                              )
+                            ) : isLocked ? (
+                              <Lock
+                                size={13}
+                                className="text-slate-400 shrink-0"
                               />
-                            )}
+                            ) : null}
                           </div>
                         </div>
                       );
@@ -935,6 +1192,14 @@ export const VenueSettings: React.FC = () => {
                   >
                     {isSaving ? (
                       <Loader2 className="animate-spin" size={20} />
+                    ) : isSelectedThemeLocked ? (
+                      <>
+                        <Crown size={18} />
+                        <span>
+                          ارتقا به پلن {TIER_LABELS[selectedThemeRequiredTier]}{" "}
+                          برای فعال‌سازی
+                        </span>
+                      </>
                     ) : (
                       <>
                         <Save size={18} />
@@ -951,7 +1216,7 @@ export const VenueSettings: React.FC = () => {
             )}
           </div>
 
-          {/* ================= ستون چپ (۵ ستون): پیش‌نمایش زنده واقعی منو داخل قاب گوشی ================= */}
+          {/* ================= ستون چپ (۵ ستون): پیش‌نمایش زنده واقعی منو روی toranjmenu.ir ================= */}
           <aside className="lg:col-span-5 lg:sticky lg:top-8 flex flex-col items-center">
             <div className="w-full max-w-[365px] flex items-center justify-between mb-3 px-2">
               <span className="text-xs font-black text-slate-600 flex items-center gap-1.5">
@@ -974,7 +1239,7 @@ export const VenueSettings: React.FC = () => {
                   />
                 </button>
                 <a
-                  href={`/${englishName}`}
+                  href={publicMenuUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   title="باز کردن در تب جدید"
@@ -985,7 +1250,7 @@ export const VenueSettings: React.FC = () => {
               </div>
             </div>
 
-            {/* قاب گوشی با نمایش واقعی صفحه منو (iframe) */}
+            {/* قاب گوشی با نمایش واقعی صفحه منو روی toranjmenu.ir/slug */}
             <div className="w-[335px] sm:w-[365px] bg-slate-900 rounded-[3.2rem] p-3 shadow-[0_30px_70px_rgba(15,23,42,0.18)] border-4 border-slate-800">
               <div className="rounded-[2.4rem] overflow-hidden bg-white flex flex-col h-[660px] relative">
                 {/* نوار آدرس بالای مرورگر موبایل */}
@@ -998,11 +1263,11 @@ export const VenueSettings: React.FC = () => {
                     className="text-zinc-300 truncate max-w-[220px]"
                     dir="ltr"
                   >
-                    {window.location.host}/{englishName}
+                    toranjmenu.ir/{englishName}
                   </span>
                 </div>
 
-                {/* iframe واقعی صفحه منو */}
+                {/* iframe واقعی صفحه منو روی دامنه اصلی */}
                 <div className="relative flex-1 w-full bg-[#F5F5F7]">
                   {isIframeLoading && (
                     <div className="absolute inset-0 z-10 bg-white/85 backdrop-blur-xs flex flex-col items-center justify-center gap-2">
@@ -1058,7 +1323,7 @@ export const VenueSettings: React.FC = () => {
 
             <div className="space-y-3">
               <a
-                href={`/${englishName}`}
+                href={publicMenuUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full bg-orange-500 hover:bg-orange-600 text-white py-4 rounded-2xl font-black flex justify-center items-center gap-2 shadow-lg transition-all"

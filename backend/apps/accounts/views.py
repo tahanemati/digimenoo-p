@@ -8,6 +8,11 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from apps.billing.entitlements import (
+    grant_trial_subscription,
+    get_user_entitlements,
+    user_has_feature,
+)
 from apps.common.responses import api_success, api_error
 from apps.restaurants.views import get_user_restaurant
 from .models import User, OTPCode
@@ -53,6 +58,18 @@ def create_and_send_otp(mobile, purpose):
     print(f"📲 OTP [{purpose}] for {mobile}: {code}")
     print("=" * 45 + "\n")
     return code
+
+
+def _team_upgrade_error():
+    return api_error(
+        "سیستم تیم‌بندی و تعریف پرسنل ویژه پلن پلاس است.",
+        data={
+            "code": "UPGRADE_REQUIRED",
+            "feature": "teamManagement",
+            "requiredTier": "plus",
+        },
+        status_code=status.HTTP_403_FORBIDDEN,
+    )
 
 
 class SendOTPView(APIView):
@@ -103,6 +120,11 @@ class VerifyOTPView(APIView):
             mobile=mobile,
             defaults={"role": User.Role.OWNER},
         )
+
+        # اعطای خودکار ۷ روز اشتراک رایگان پلاس برای کاربران جدید (فقط یک‌بار)
+        if user.role == User.Role.OWNER:
+            grant_trial_subscription(user, days=7)
+
         tokens = get_tokens_for_user(user)
 
         return api_success(
@@ -115,6 +137,7 @@ class VerifyOTPView(APIView):
                     "role": user.role,
                     "hasContact": user.has_contact,
                     "hasRestaurant": user_has_restaurant(user),
+                    "subscription": get_user_entitlements(user),
                 },
             },
             message="ورود با موفقیت انجام شد.",
@@ -135,6 +158,16 @@ class LoginView(APIView):
             )
 
         user = serializer.validated_data["user"]
+
+        if user.role != User.Role.OWNER and not user_has_feature(
+            user, "teamManagement"
+        ):
+            return api_error(
+                "دسترسی پرسنل فقط در پلن پلاس فعال است. لطفاً با مدیر مجموعه تماس بگیرید.",
+                data={"code": "UPGRADE_REQUIRED", "requiredTier": "plus"},
+                status_code=status.HTTP_403_FORBIDDEN,
+            )
+
         tokens = get_tokens_for_user(user)
         return api_success(
             {
@@ -146,6 +179,7 @@ class LoginView(APIView):
                     "role": user.role,
                     "hasContact": user.has_contact,
                     "hasRestaurant": user_has_restaurant(user),
+                    "subscription": get_user_entitlements(user),
                 },
             },
             message="ورود با موفقیت انجام شد.",
@@ -163,6 +197,9 @@ class CompleteProfileView(APIView):
             return api_error("اطلاعات وارد شده نامعتبر است.", serializer.errors)
 
         user = serializer.save()
+        if user.role == User.Role.OWNER:
+            grant_trial_subscription(user, days=7)
+
         tokens = get_tokens_for_user(user)
         return api_success(
             {
@@ -175,6 +212,7 @@ class CompleteProfileView(APIView):
                     "role": user.role,
                     "hasContact": user.has_contact,
                     "hasRestaurant": user_has_restaurant(user),
+                    "subscription": get_user_entitlements(user),
                 },
             },
             message="اطلاعات حساب با موفقیت تکمیل شد.",
@@ -196,6 +234,7 @@ class DashboardStatusView(APIView):
                 "role": user.role,
                 "hasContact": user.has_contact,
                 "hasRestaurant": user_has_restaurant(user),
+                "subscription": get_user_entitlements(user),
             }
         )
 
@@ -302,6 +341,9 @@ class StaffListCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        if not user_has_feature(request.user, "teamManagement"):
+            return _team_upgrade_error()
+
         owner = (
             request.user
             if request.user.role == User.Role.OWNER
@@ -335,6 +377,9 @@ class StaffListCreateView(APIView):
                 "فقط مدیر کل می‌تواند عضو جدید اضافه کند.",
                 status_code=status.HTTP_403_FORBIDDEN,
             )
+
+        if not user_has_feature(request.user, "teamManagement"):
+            return _team_upgrade_error()
 
         restaurant = get_user_restaurant(request.user)
         if not restaurant:
@@ -397,6 +442,9 @@ class StaffToggleActiveView(APIView):
                 status_code=status.HTTP_403_FORBIDDEN,
             )
 
+        if not user_has_feature(request.user, "teamManagement"):
+            return _team_upgrade_error()
+
         staff_user = get_object_or_404(User, id=staff_id, owner=request.user)
         staff_user.is_active = not staff_user.is_active
         staff_user.save(update_fields=["is_active"])
@@ -418,6 +466,9 @@ class TeamListCreateView(APIView):
             return api_error(
                 "دسترسی غیرمجاز.", status_code=status.HTTP_403_FORBIDDEN
             )
+        if not user_has_feature(request.user, "teamManagement"):
+            return _team_upgrade_error()
+
         members = User.objects.filter(owner=request.user).order_by(
             "-created_at"
         )
@@ -429,6 +480,9 @@ class TeamListCreateView(APIView):
             return api_error(
                 "دسترسی غیرمجاز.", status_code=status.HTTP_403_FORBIDDEN
             )
+        if not user_has_feature(request.user, "teamManagement"):
+            return _team_upgrade_error()
+
         serializer = TeamMemberSerializer(
             data=request.data, context={"request": request}
         )
@@ -450,6 +504,9 @@ class TeamDetailView(APIView):
             return api_error(
                 "دسترسی غیرمجاز.", status_code=status.HTTP_403_FORBIDDEN
             )
+        if not user_has_feature(request.user, "teamManagement"):
+            return _team_upgrade_error()
+
         member = get_object_or_404(User, id=member_id, owner=request.user)
         serializer = TeamMemberSerializer(
             member, data=request.data, partial=True, context={"request": request}
@@ -464,6 +521,9 @@ class TeamDetailView(APIView):
             return api_error(
                 "دسترسی غیرمجاز.", status_code=status.HTTP_403_FORBIDDEN
             )
+        if not user_has_feature(request.user, "teamManagement"):
+            return _team_upgrade_error()
+
         member = get_object_or_404(User, id=member_id, owner=request.user)
         member.delete()
         return api_success(message="عضو تیم حذف شد.")
@@ -477,6 +537,9 @@ class TeamToggleActiveView(APIView):
             return api_error(
                 "دسترسی غیرمجاز.", status_code=status.HTTP_403_FORBIDDEN
             )
+        if not user_has_feature(request.user, "teamManagement"):
+            return _team_upgrade_error()
+
         member = get_object_or_404(User, id=member_id, owner=request.user)
         member.is_active = not member.is_active
         member.save()

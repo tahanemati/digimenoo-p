@@ -4,14 +4,11 @@ import {
   QrCode,
   ArrowLeft,
   PlayCircle,
-  Plus,
-  ShoppingCart,
   Check,
   Rocket,
   UserPlus,
   Store,
   Smartphone,
-  Zap,
   Hand,
   Monitor,
   Clock,
@@ -48,11 +45,16 @@ import {
   X,
   RotateCcw,
   CalendarCheck,
-  Sparkles,
   BellRing,
   TrendingUp,
   Globe,
   Loader2,
+  Gift,
+  Crown,
+  RefreshCw,
+  ExternalLink,
+  User,
+  UserCheck,
 } from "lucide-react";
 import { subscriptionApi } from "../service/api";
 
@@ -110,7 +112,7 @@ const INITIAL_KDS_ORDERS: KdsOrder[] = [
   },
 ];
 
-// پلن‌های پیش‌فرض صرفاً تا زمان دریافت پاسخ از بک‌اند
+// پلن‌های پیش‌فرض هماهنگ با ماتریس نهایی دسترسی‌ها تا زمان دریافت پاسخ از بک‌اند
 const FALLBACK_PLANS: DynamicPlanCard[] = [
   {
     id: "basic",
@@ -121,10 +123,10 @@ const FALLBACK_PLANS: DynamicPlanCard[] = [
     price6m: 800000,
     price9m: 1100000,
     featuresList: [
-      "ثبت تا ۵۰ آیتم منو",
-      "قالب منوی دیجیتال هوشمند",
+      "دسترسی به ۳ قالب اول منو",
+      "پنل زنده آشپزخانه (KDS)",
+      "گزارشات مالی و فروش",
       "ساخت بارکد QR اختصاصی میزها",
-      "پشتیبانی آنلاین",
     ],
     badgeText: "",
     isPopular: false,
@@ -138,10 +140,10 @@ const FALLBACK_PLANS: DynamicPlanCard[] = [
     price6m: 1400000,
     price9m: 2000000,
     featuresList: [
-      "ثبت آیتم و دسته‌بندی بی‌نهایت",
-      "شخصی‌سازی کامل رنگ، لوگو و قالب منو",
-      "سیستم رزرو آنلاین و وضعیت زنده میزها",
-      "درگاه پرداخت اختصاصی و کیف پول",
+      "دسترسی به ۶ قالب اول منو",
+      "سفارش‌دهی آنلاین از منو و رزرو میزها",
+      "منوی دو زبانه (فارسی و انگلیسی)",
+      "درخواست گارسون و سرآشپز + KDS و گزارش مالی",
     ],
     badgeText: "محبوب‌ترین انتخاب",
     isPopular: true,
@@ -155,10 +157,10 @@ const FALLBACK_PLANS: DynamicPlanCard[] = [
     price6m: 2200000,
     price9m: 3100000,
     featuresList: [
-      "تمامی امکانات پلن استاندارد",
-      "پنل زنده آشپزخانه (KDS) و مراحل پخت",
-      "تعریف نقش‌های پرسنل (صندوق‌دار، سرآشپز، گارسون)",
-      "گزارشات جامع مالی و چاپ صورت‌حساب رسمی",
+      "دسترسی کامل به هر ۱۵ قالب اختصاصی منو",
+      "سیستم تیم‌بندی و تعریف نقش پرسنل",
+      "تمامی امکانات استاندارد (سفارش، رزرو، دوزبانه، گارسون و سرآشپز)",
+      "پنل زنده آشپزخانه (KDS) و گزارشات مالی",
     ],
     badgeText: "کامل‌ترین بسته",
     isPopular: false,
@@ -166,6 +168,11 @@ const FALLBACK_PLANS: DynamicPlanCard[] = [
 ];
 
 const FAQ_ITEMS = [
+  {
+    question: "آیا قبل از خرید اشتراک امکان تست رایگان وجود دارد؟",
+    answer:
+      "بله! به محض ثبت‌نام مجموعه جدید در ترنج، ۷ روز اشتراک رایگان پلن پلاس (با دسترسی کامل به هر ۱۵ قالب، سفارش‌دهی آنلاین، رزرو میز، تیم‌بندی و پنل آشپزخانه) به‌صورت خودکار و بدون نیاز به پرداخت اولیه برای شما فعال می‌شود.",
+  },
   {
     question: "آیا مشتریان برای دیدن منوی دیجیتال باید اپلیکیشن نصب کنند؟",
     answer:
@@ -213,6 +220,29 @@ const detectTier = (plan: any, idx: number): PlanTierKey => {
   return "basic";
 };
 
+// آیکون سه‌بعدی شیشه‌ای برای آواتار نظرات مشتریان
+const Avatar3DBadge: React.FC<{
+  icon: React.ComponentType<{
+    size?: number;
+    strokeWidth?: number;
+    className?: string;
+  }>;
+  gradient: string;
+  shadow: string;
+}> = ({ icon: IconComponent, gradient, shadow }) => (
+  <div
+    className={`relative w-11 h-11 rounded-[15px] bg-gradient-to-br ${gradient} flex items-center justify-center text-white shadow-lg ${shadow} shrink-0`}
+  >
+    <div className="absolute inset-x-1.5 top-1 h-4 rounded-t-[10px] bg-gradient-to-b from-white/45 to-transparent pointer-events-none" />
+    <div className="absolute inset-0 rounded-[15px] ring-1 ring-inset ring-white/30 pointer-events-none" />
+    <IconComponent
+      size={20}
+      strokeWidth={2.4}
+      className="relative z-10 drop-shadow-[0_3px_4px_rgba(0,0,0,0.28)]"
+    />
+  </div>
+);
+
 // نشان هندسی اختصاصی برند ترنج
 const ToranjLogoMark: React.FC<{ className?: string }> = ({
   className = "w-9 h-9",
@@ -253,11 +283,49 @@ export const Landing: React.FC = () => {
   const [isNavbarVisible, setIsNavbarVisible] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // سبد خرید تعاملی داخل موکاپ موبایل Hero
-  const [cartTotalAmount, setCartTotalAmount] = useState(0);
-  const [cartItemsCount, setCartItemsCount] = useState(0);
-  const [isAddedFeedback, setIsAddedFeedback] = useState(false);
-  const [isPhonePulsing, setIsPhonePulsing] = useState(false);
+  // وضعیت iframe منوی زنده + مقیاس‌دهی خودکار با عرض واقعی موبایل (360px)
+  const VIRTUAL_PHONE_WIDTH = 360;
+  const phoneScreenRef = useRef<HTMLDivElement | null>(null);
+  const [phoneScreenSize, setPhoneScreenSize] = useState({
+    width: 316,
+    height: 520,
+  });
+  const [demoRefreshKey, setDemoRefreshKey] = useState(0);
+  const [isDemoLoading, setIsDemoLoading] = useState(true);
+
+  const isLocalEnv =
+    typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1");
+
+  const demoBaseUrl = isLocalEnv
+    ? "http://localhost:5173/test-taha?table=1"
+    : "https://toranjmenu.ir/test-taha?table=1";
+  const demoIframeSrc =
+    demoRefreshKey > 0 ? `${demoBaseUrl}?r=${demoRefreshKey}` : demoBaseUrl;
+  const demoDisplayHost = isLocalEnv
+    ? "localhost:5173/test-taha?table=1"
+    : "toranjmenu.ir/test-taha?table=1";
+
+  useEffect(() => {
+    const el = phoneScreenRef.current;
+    if (!el) return;
+
+    const updateSize = () => {
+      const rect = el.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        setPhoneScreenSize({ width: rect.width, height: rect.height });
+      }
+    };
+
+    updateSize();
+    const observer = new ResizeObserver(updateSize);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const iframeScale = phoneScreenSize.width / VIRTUAL_PHONE_WIDTH;
+  const iframeVirtualHeight = Math.ceil(phoneScreenSize.height / iframeScale);
 
   // بخش مراحل راه‌اندازی (Interactive Step Deck)
   const [activeStepIdx, setActiveStepIdx] = useState<number>(0);
@@ -283,7 +351,7 @@ export const Landing: React.FC = () => {
     const pageTitle =
       "ترنج | ساخت منوی دیجیتال هوشمند و سیستم سفارش‌گیری آنلاین رستوران و کافه";
     const pageDesc =
-      "با پلتفرم ترنج (toranjmenu.ir) در کمتر از ۵ دقیقه منوی دیجیتال QR کد، سیستم سفارش‌گیری سر میز، رزرو آنلاین میز و پنل آشپزخانه (KDS) را با ۰٪ کارمزد راه‌اندازی کنید.";
+      "با پلتفرم ترنج (toranjmenu.ir) با ۷ روز اشتراک رایگان پلن پلاس و ۰٪ کارمزد، منوی دیجیتال QR کد، سفارش‌گیری سر میز، رزرو آنلاین میز و پنل آشپزخانه (KDS) را راه‌اندازی کنید.";
     const pageKeywords =
       "منوی دیجیتال, منوی آنلاین رستوران, منوی دیجیتال کافه, بارکد میز رستوران, منو QR کد, سفارش گیری آنلاین رستوران, ترنج";
 
@@ -325,7 +393,6 @@ export const Landing: React.FC = () => {
     }
     canonical.setAttribute("href", "https://toranjmenu.ir/");
 
-    // تزریق Schema.org JSON-LD هماهنگ با محتوای صفحه
     const schemaScriptId = "toranj-landing-jsonld";
     let schemaScript = document.getElementById(
       schemaScriptId,
@@ -351,7 +418,7 @@ export const Landing: React.FC = () => {
             "@type": "Offer",
             price: "0",
             priceCurrency: "IRR",
-            description: "بدون دریافت کارمزد از سفارش‌ها",
+            description: "۷ روز اشتراک رایگان پلاس و ۰٪ کارمزد از سفارش‌ها",
           },
         },
         {
@@ -452,7 +519,7 @@ export const Landing: React.FC = () => {
   // کنترل اسکرول برای نمایش نوبار شناور
   useEffect(() => {
     const handleScroll = () => {
-      setIsNavbarVisible(window.scrollY > 80);
+      setIsNavbarVisible(window.scrollY > 110);
     };
     window.addEventListener("scroll", handleScroll, { passive: true });
     handleScroll();
@@ -466,17 +533,6 @@ export const Landing: React.FC = () => {
       document.body.style.overflow = "auto";
     };
   }, [isMobileMenuOpen]);
-
-  // افزودن محصول به سبد خرید موکاپ Hero
-  const handleAddToMockCart = (price: number) => {
-    setCartTotalAmount((prev) => prev + price);
-    setCartItemsCount((prev) => prev + 1);
-    setIsAddedFeedback(true);
-    setIsPhonePulsing(true);
-
-    setTimeout(() => setIsPhonePulsing(false), 150);
-    setTimeout(() => setIsAddedFeedback(false), 1200);
-  };
 
   // جابه‌جایی کارت سفارش در برد KDS
   const handleMoveKdsOrder = (order: KdsOrder) => {
@@ -542,13 +598,13 @@ export const Landing: React.FC = () => {
   const stepsData = [
     {
       num: "۰۱",
-      title: "ساخت حساب منوی دیجیتال در ۱۰ ثانیه",
-      subtitle: "بدون فرم‌های پیچیده و کاغذبازی",
-      desc: "تنها با وارد کردن شماره موبایل و تایید کد پیامکی، پنل مدیریت اختصاصی کافه یا رستوران خود را در ترنج فعال کنید.",
+      title: "ثبت‌نام و فعال‌سازی ۷ روز اشتراک رایگان پلاس",
+      subtitle: "بدون نیاز به پرداخت اولیه یا کارت بانکی",
+      desc: "تنها با شماره موبایل و کد تایید، پنل مدیریت شما ساخته می‌شود و ۷ روز دسترسی کامل به تمام امکانات پلن پلاس بلافاصله فعال می‌گردد.",
       icon: UserPlus,
       badge: "گام اول",
-      previewTitle: "ورود سریع با شماره موبایل",
-      previewDetail: "کد تایید ارسال شد • دسترسی آنی به داشبورد",
+      previewTitle: "۷ روز اشتراک رایگان پلاس فعال شد",
+      previewDetail: "دسترسی کامل به ۱۵ قالب، تیم‌بندی و سفارش آنلاین",
     },
     {
       num: "۰۲",
@@ -574,13 +630,13 @@ export const Landing: React.FC = () => {
 
   return (
     <div
-      className="min-h-screen bg-[#fffaf5] text-gray-800 antialiased overflow-x-hidden selection:bg-orange-500/20"
+      className="min-h-screen bg-[#FAF9F7] text-gray-800 antialiased overflow-x-hidden selection:bg-orange-500/20"
       dir="rtl"
     >
-      {/* ================= Navbar ================= */}
+      {/* ================= Floating Sticky Navbar (پس از اسکرول) ================= */}
       <nav
         aria-label="منوی اصلی سایت"
-        className={`fixed top-5 left-1/2 -translate-x-1/2 w-[92%] max-w-5xl bg-white/80 backdrop-blur-xl border border-white/70 shadow-[0_8px_30px_rgba(234,88,12,0.08)] rounded-full z-50 px-5 py-2.5 flex items-center justify-between transition-all duration-700 ${
+        className={`fixed top-5 left-1/2 -translate-x-1/2 w-[92%] max-w-5xl bg-white/85 backdrop-blur-xl border border-gray-200/70 shadow-[0_8px_30px_rgba(15,23,42,0.06)] rounded-full z-50 px-5 py-2.5 flex items-center justify-between transition-all duration-500 ${
           isNavbarVisible
             ? "translate-y-0 opacity-100"
             : "-translate-y-[150%] opacity-0 pointer-events-none"
@@ -648,7 +704,7 @@ export const Landing: React.FC = () => {
 
       {/* منوی تمام صفحه شیشه‌ای برای موبایل */}
       <div
-        className={`fixed inset-0 bg-white/90 backdrop-blur-2xl z-[60] flex flex-col items-center justify-center transition-all duration-500 ${
+        className={`fixed inset-0 bg-white/95 backdrop-blur-2xl z-[60] flex flex-col items-center justify-center transition-all duration-500 ${
           isMobileMenuOpen
             ? "opacity-100 pointer-events-auto translate-y-0"
             : "opacity-0 pointer-events-none translate-y-8"
@@ -711,74 +767,127 @@ export const Landing: React.FC = () => {
           </li>
         </ul>
 
-        <Link
-          to="/login"
-          onClick={() => setIsMobileMenuOpen(false)}
-          className="mt-12 font-bold text-base bg-orange-500 text-white px-10 py-4 rounded-full shadow-[0_10px_30px_rgba(249,115,22,0.3)] active:scale-95 transition-all"
-        >
-          ورود به پنل مدیریت
-        </Link>
+        <div className="mt-12 flex flex-col items-center gap-3">
+          <Link
+            to="/register"
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="font-black text-base bg-orange-500 text-white px-10 py-4 rounded-full shadow-[0_10px_30px_rgba(249,115,22,0.28)] active:scale-95 transition-all"
+          >
+            شروع ۷ روز رایگان پلاس
+          </Link>
+          <Link
+            to="/login"
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="font-bold text-sm text-gray-500 hover:text-gray-900 py-2"
+          >
+            ورود به پنل مدیریت
+          </Link>
+        </div>
       </div>
 
       <main id="main-content">
-        {/* ================= 1. Hero Section ================= */}
+        {/* ================= 1. Clean & Minimal Hero Section (Full Viewport, No Scroll) ================= */}
         <section
           id="hero-section"
-          className="relative min-h-screen flex items-center justify-center pt-20 pb-20 overflow-hidden bg-[#fffaf5]"
+          className="relative bg-[#FAF9F7] lg:h-[100dvh] lg:min-h-[600px] lg:max-h-[880px] lg:flex lg:flex-col pb-12 lg:pb-4 overflow-hidden"
         >
-          {/* هاله‌های نوری و بافت هندسی ظریف پس‌زمینه */}
-          <div
-            className="absolute inset-0 opacity-[0.35] pointer-events-none"
-            style={{
-              backgroundImage: "radial-gradient(#fed7aa 1px, transparent 1px)",
-              backgroundSize: "28px 28px",
-            }}
-          />
-          <div className="absolute top-16 right-[-5%] w-[560px] h-[560px] bg-orange-300/25 rounded-full blur-[130px] pointer-events-none z-0" />
-          <div className="absolute bottom-0 left-[-8%] w-[480px] h-[480px] bg-amber-400/15 rounded-full blur-[110px] pointer-events-none z-0" />
+          {/* هاله نور تک‌لایه و بسیار ملایم */}
+          <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[720px] h-[340px] bg-orange-200/20 rounded-full blur-[120px] pointer-events-none" />
 
-          {/* محتوای اصلی Hero */}
-          <div className="max-w-7xl mx-auto px-6 w-full flex flex-col lg:flex-row gap-14 lg:gap-10 items-center relative z-10">
-            {/* ستون راست: کپی‌رایتینگ، آمار و دکمه‌ها */}
-            <div className="flex-1 flex flex-col items-center lg:items-start text-center lg:text-right">
-              <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-white/90 border border-orange-200/70 text-orange-600 text-xs sm:text-[13px] font-black mb-7 shadow-sm backdrop-blur-md">
-                <span className="relative flex h-2.5 w-2.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-orange-500" />
-                </span>
-                <span>پلتفرم منوی دیجیتال QR کد و مدیریت سالن ترنج</span>
+          {/* نوبار مینیمال ابتدای صفحه */}
+          <header className="max-w-6xl mx-auto w-full px-6 pt-5 pb-3 lg:pt-4 lg:pb-2 flex items-center justify-between relative z-20 shrink-0">
+            <a
+              href="#hero-section"
+              className="flex items-center gap-2.5 font-black text-2xl text-gray-900 tracking-tight"
+            >
+              <ToranjLogoMark className="w-9 h-9" />
+              <span>
+                ترن<span className="text-orange-500">ج</span>
+              </span>
+            </a>
+
+            <div className="hidden md:flex items-center gap-8 text-sm font-bold text-gray-500">
+              <a
+                href="#steps-section"
+                className="hover:text-gray-900 transition-colors"
+              >
+                مراحل شروع
+              </a>
+              <a
+                href="#kds-section"
+                className="hover:text-gray-900 transition-colors"
+              >
+                پنل آشپزخانه
+              </a>
+              <a
+                href="#features-section"
+                className="hover:text-gray-900 transition-colors"
+              >
+                امکانات
+              </a>
+              <a
+                href="#pricing-section"
+                className="hover:text-gray-900 transition-colors"
+              >
+                تعرفه‌ها
+              </a>
+            </div>
+
+            <div className="flex items-center gap-2.5">
+              <Link
+                to="/login"
+                className="hidden sm:inline-flex text-sm font-bold text-gray-600 hover:text-gray-900 px-4 py-2 transition-colors"
+              >
+                ورود
+              </Link>
+              <Link
+                to="/register"
+                className="hidden sm:inline-flex items-center gap-1.5 bg-gray-900 hover:bg-orange-500 text-white text-xs sm:text-sm font-black px-5 py-2.5 rounded-full transition-colors"
+              >
+                <span>شروع ۷ روز رایگان</span>
+              </Link>
+              <button
+                type="button"
+                onClick={() => setIsMobileMenuOpen(true)}
+                aria-label="باز کردن منوی ناوبری"
+                className="md:hidden w-10 h-10 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-800"
+              >
+                <Menu size={20} strokeWidth={2.5} />
+              </button>
+            </div>
+          </header>
+
+          {/* محتوای اصلی هیرو — فیت کامل در یک صفحه بدون اسکرول */}
+          <div className="max-w-6xl mx-auto w-full px-6 pt-6 lg:pt-0 lg:flex-1 grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-8 items-center relative z-10">
+            {/* ستون راست: پیام اصلی، پیشنهاد ۷ روز رایگان و دکمه‌ها */}
+            <div className="lg:col-span-7 flex flex-col items-center lg:items-start text-center lg:text-right">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-orange-200/70 text-orange-600 text-xs font-black mb-5 shadow-[0_2px_10px_rgba(0,0,0,0.03)]">
+                <Gift size={14} className="shrink-0" />
+                <span>۷ روز اشتراک رایگان پلن پلاس برای مجموعه‌های جدید</span>
               </div>
 
-              <h1 className="font-black text-4xl sm:text-5xl lg:text-[62px] leading-[1.18] mb-6 text-gray-900 tracking-tight">
-                منوی دیجیتال هوشمند و{" "}
-                <span className="relative inline-block">
-                  <span className="relative z-10 text-transparent bg-clip-text bg-gradient-to-l from-orange-600 via-orange-500 to-amber-500">
-                    سفارش‌گیری آنلاین
-                  </span>
-                  <span className="absolute bottom-2 inset-x-0 h-3 bg-orange-200/50 -z-0 rounded-full" />
-                </span>{" "}
-                رستوران و کافه.
+              <h1 className="font-black text-3xl sm:text-5xl lg:text-[46px] xl:text-[52px] leading-[1.24] text-gray-950 tracking-tight mb-4 max-w-xl">
+                منوی دیجیتال هوشمند،
+                <br />
+                <span className="text-orange-500">ساده و بدون کارمزد</span> برای
+                مجموعه شما.
               </h1>
 
-              <p className="text-base sm:text-lg md:text-xl text-gray-500 leading-relaxed mb-9 max-w-xl font-medium">
-                با <strong className="text-gray-800 font-black">ترنج</strong>،
-                منوی آنلاین اختصاصی مجموعه خود را با بارکد QR میزها و{" "}
-                <strong className="text-gray-800 font-bold">
-                  ۰٪ کارمزد از فروش
-                </strong>{" "}
-                بسازید؛ قیمت‌ها را لحظه‌ای تغییر دهید و سفارش‌ها را مستقیم در
-                پنل آشپزخانه دریافت کنید.
+              <p className="text-sm sm:text-base lg:text-lg text-gray-500 leading-relaxed mb-7 max-w-lg font-medium">
+                در کمتر از ۵ دقیقه منوی QR اختصاصی کافه یا رستوران خود را
+                بسازید، سفارش‌ها را زنده در آشپزخانه بگیرید و میزها را آنلاین
+                مدیریت کنید.
               </p>
 
-              {/* دکمه‌های CTA */}
-              <div className="flex flex-col sm:flex-row items-center gap-3.5 w-full sm:w-auto mb-10">
+              {/* دکمه‌های اصلی */}
+              <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto mb-6">
                 <Link
                   to="/register"
-                  className="group relative flex items-center justify-center gap-3 bg-gradient-to-l from-orange-600 to-orange-500 text-white font-black text-base px-8 py-4 rounded-2xl shadow-[0_14px_35px_rgba(234,88,12,0.28)] hover:shadow-[0_18px_45px_rgba(234,88,12,0.38)] transition-all duration-300 w-full sm:w-auto transform hover:-translate-y-0.5"
+                  className="group flex items-center justify-center gap-2.5 bg-gray-950 hover:bg-orange-500 text-white font-black text-sm sm:text-base px-7 py-3.5 rounded-2xl shadow-[0_12px_30px_rgba(15,23,42,0.12)] transition-all duration-300 w-full sm:w-auto active:scale-[0.98]"
                 >
-                  <span>ساخت منوی دیجیتال رایگان</span>
+                  <span>شروع ۷ روز رایگان</span>
                   <ArrowLeft
-                    size={18}
+                    size={17}
                     strokeWidth={2.5}
                     className="group-hover:-translate-x-1 transition-transform"
                   />
@@ -786,231 +895,136 @@ export const Landing: React.FC = () => {
 
                 <a
                   href="#kds-section"
-                  className="flex items-center justify-center gap-2.5 bg-white/90 text-gray-800 border border-gray-200/90 font-bold text-base px-7 py-4 rounded-2xl hover:bg-white hover:border-orange-200 transition-all duration-300 w-full sm:w-auto shadow-2xs"
+                  className="flex items-center justify-center gap-2 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 font-bold text-sm sm:text-base px-6 py-3.5 rounded-2xl transition-colors w-full sm:w-auto"
                 >
-                  <PlayCircle size={20} className="text-orange-500" />
-                  <span>تجربه پنل آشپزخانه</span>
+                  <PlayCircle size={19} className="text-orange-500" />
+                  <span>مشاهده دموی زنده</span>
                 </a>
               </div>
 
-              {/* نوار اعتماد و شاخص‌های کلیدی */}
-              <div className="w-full max-w-lg grid grid-cols-3 gap-3 bg-white/80 backdrop-blur-xl border border-white rounded-3xl p-4 shadow-[0_10px_30px_rgba(0,0,0,0.03)]">
-                <div className="text-center lg:text-right px-2">
-                  <span className="block font-black text-xl sm:text-2xl text-gray-900">
-                    +۵۰۰
-                  </span>
-                  <span className="text-[11px] font-bold text-gray-400">
-                    کافه و رستوران فعال
-                  </span>
-                </div>
-                <div className="text-center lg:text-right px-2 border-x border-gray-100">
-                  <span className="block font-black text-xl sm:text-2xl text-orange-600">
-                    ۰٪
-                  </span>
-                  <span className="text-[11px] font-bold text-gray-400">
-                    کارمزد از سفارش‌ها
-                  </span>
-                </div>
-                <div className="text-center lg:text-right px-2">
-                  <span className="block font-black text-xl sm:text-2xl text-gray-900">
-                    ۱۵ قالب
-                  </span>
-                  <span className="text-[11px] font-bold text-gray-400">
-                    مدرن، لوکس و سنتی
-                  </span>
-                </div>
+              {/* خط اعتماد مینیمال */}
+              <div className="flex flex-wrap items-center justify-center lg:justify-start gap-x-5 gap-y-2 text-xs font-bold text-gray-500">
+                <span className="flex items-center gap-1.5">
+                  <Check
+                    size={14}
+                    className="text-emerald-500"
+                    strokeWidth={3}
+                  />
+                  ۷ روز تست کامل پلاس (بدون کارت بانکی)
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Check
+                    size={14}
+                    className="text-emerald-500"
+                    strokeWidth={3}
+                  />
+                  ۰٪ کارمزد از سفارش‌ها
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Check
+                    size={14}
+                    className="text-emerald-500"
+                    strokeWidth={3}
+                  />
+                  ۱۵ قالب اختصاصی منو
+                </span>
               </div>
             </div>
 
-            {/* ستون چپ: ویترین تعاملی موبایل + کارت‌های شناور */}
-            <div className="flex-1 w-full flex justify-center items-center relative">
-              {/* کارت شناور ۱: رزرو میز زنده */}
-              <div className="hidden xl:flex items-center gap-3 bg-white/95 backdrop-blur-xl p-3.5 rounded-2xl shadow-[0_20px_45px_rgba(0,0,0,0.08)] border border-orange-100/80 absolute -right-4 top-14 z-30 animate-float">
-                <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                  <CalendarCheck size={20} />
-                </div>
-                <div>
-                  <span className="block text-xs font-black text-gray-900">
-                    رزرو آنلاین میز ۴
-                  </span>
-                  <span className="block text-[10px] font-bold text-emerald-600">
-                    تایید شد • ساعت ۲۱:۰۰
-                  </span>
-                </div>
-              </div>
-
-              {/* کارت شناور ۲: اتصال لحظه‌ای به آشپزخانه */}
-              <div className="hidden xl:flex items-center gap-3 bg-gray-900 text-white p-3.5 rounded-2xl shadow-[0_20px_45px_rgba(15,23,42,0.22)] border border-white/10 absolute -left-4 bottom-20 z-30">
-                <div className="w-10 h-10 rounded-xl bg-orange-500 text-white flex items-center justify-center shrink-0">
-                  <Zap size={20} />
-                </div>
-                <div>
-                  <span className="block text-xs font-black">
-                    ارسال آنی به آشپزخانه
-                  </span>
-                  <span className="block text-[10px] font-bold text-orange-300">
-                    همگام‌سازی زنده WebSocket
-                  </span>
-                </div>
-              </div>
-
-              {/* بدنه موکاپ گوشی */}
-              <div
-                style={{
-                  transform: isPhonePulsing ? "scale(0.98)" : undefined,
-                }}
-                className="relative w-[305px] sm:w-[325px] h-[610px] sm:h-[640px] bg-white rounded-[3.1rem] p-2.5 shadow-[0_40px_90px_rgba(234,88,12,0.14),_inset_0_0_0_10px_rgba(243,244,246,1)] transition-transform duration-500 flex flex-col z-20 group"
-              >
-                {/* داینامیک آیلند */}
-                <div className="absolute top-4 left-1/2 -translate-x-1/2 w-28 h-7 bg-gray-950 rounded-full z-40 shadow-sm flex items-center justify-between px-3">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className="text-[9px] font-bold text-gray-300 tracking-wide">
-                    toranjmenu
-                  </span>
-                </div>
-
-                {/* اسکرین داخلی */}
-                <div className="relative w-full h-full bg-[#faf8f5] rounded-[2.5rem] overflow-hidden flex flex-col shadow-inner">
-                  {/* هدر مجموعه داخل گوشی */}
-                  <div className="bg-white px-5 pt-14 pb-4 flex flex-col items-center border-b border-gray-100 shadow-2xs relative z-10 shrink-0">
-                    <div className="w-14 h-14 bg-gradient-to-br from-orange-500 to-amber-500 rounded-2xl flex items-center justify-center text-white mb-2 shadow-md shadow-orange-500/20">
-                      <Coffee size={26} strokeWidth={2.2} />
-                    </div>
-                    <h2 className="font-black text-gray-900 text-base">
-                      کافه رستوران ترنج
-                    </h2>
-                    <div className="flex items-center gap-2 mt-1.5">
-                      <span className="inline-flex items-center gap-1 bg-orange-50 text-orange-600 text-[10px] font-black px-2.5 py-0.5 rounded-full border border-orange-100">
-                        میز شماره ۴
-                      </span>
-                      <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-600 text-[10px] font-bold px-2.5 py-0.5 rounded-full">
-                        سفارش آنلاین فعال
+            {/* ستون چپ: قاب موبایل متناسب با ارتفاع صفحه + رندر با عرض واقعی 360px */}
+            <div className="lg:col-span-5 flex flex-col items-center">
+              <div className="relative w-[312px] sm:w-[332px] xl:w-[346px] h-[560px] lg:h-[min(600px,calc(100dvh-125px))] bg-gray-950 rounded-[2.8rem] p-2 shadow-[0_28px_70px_rgba(15,23,42,0.15)] ring-1 ring-black/5 flex flex-col">
+                <div className="relative w-full h-full bg-white rounded-[2.3rem] overflow-hidden flex flex-col">
+                  {/* نوار آدرس ظریف بالای مرورگر موبایل */}
+                  <div className="bg-gray-950 text-white px-3.5 py-2 flex items-center justify-between gap-2 shrink-0">
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      <span className="text-[10px] font-black text-emerald-400">
+                        دموی زنده
                       </span>
                     </div>
-                  </div>
 
-                  {/* لیست محصولات تعاملی */}
-                  <div className="flex-1 overflow-y-auto hide-scrollbar p-4 pb-28 relative z-0 flex flex-col gap-3">
-                    <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-2xs flex gap-3 items-center hover:border-orange-200 transition-colors">
-                      <div className="w-14 h-14 bg-orange-50 text-orange-500 rounded-xl flex items-center justify-center border border-orange-100 shrink-0">
-                        <Coffee size={24} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-black text-gray-800 text-[13px] leading-tight mb-1 truncate">
-                          کارامل ماکیاتو ویژه
-                        </h3>
-                        <p className="text-[10px] text-gray-400 truncate">
-                          اسپرسو دبل، شیر بخارداده و سس کارامل
-                        </p>
-                        <p className="text-[12px] text-orange-600 font-black mt-1">
-                          ۸۵,۰۰۰ <span className="text-[9px]">تومان</span>
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        aria-label="افزودن کارامل ماکیاتو به سبد خرید"
-                        onClick={() => handleAddToMockCart(85)}
-                        className="w-8 h-8 rounded-full bg-gray-900 text-white flex items-center justify-center hover:bg-orange-500 transition-all active:scale-75 shrink-0"
-                      >
-                        <Plus size={15} strokeWidth={2.8} />
-                      </button>
-                    </div>
-
-                    <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-2xs flex gap-3 items-center hover:border-orange-200 transition-colors">
-                      <div className="w-14 h-14 bg-red-50 text-red-500 rounded-xl flex items-center justify-center border border-red-100 shrink-0">
-                        <Sandwich size={24} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-black text-gray-800 text-[13px] leading-tight mb-1 truncate">
-                          چیزبرگر ذغالی دبل
-                        </h3>
-                        <p className="text-[10px] text-gray-400 truncate">
-                          دو ورق گوشت تازه، پنیر چدار و سس مخصوص
-                        </p>
-                        <p className="text-[12px] text-orange-600 font-black mt-1">
-                          ۲۴۰,۰۰۰ <span className="text-[9px]">تومان</span>
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        aria-label="افزودن چیزبرگر ذغالی به سبد خرید"
-                        onClick={() => handleAddToMockCart(240)}
-                        className="w-8 h-8 rounded-full bg-gray-900 text-white flex items-center justify-center hover:bg-orange-500 transition-all active:scale-75 shrink-0"
-                      >
-                        <Plus size={15} strokeWidth={2.8} />
-                      </button>
-                    </div>
-
-                    <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-2xs flex gap-3 items-center hover:border-orange-200 transition-colors">
-                      <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center border border-emerald-100 shrink-0">
-                        <Soup size={24} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-black text-gray-800 text-[13px] leading-tight mb-1 truncate">
-                          سالاد سزار با مرغ گریل
-                        </h3>
-                        <p className="text-[10px] text-gray-400 truncate">
-                          کاهو رسمی، فیله گریل، پارمزان و کروتان
-                        </p>
-                        <p className="text-[12px] text-orange-600 font-black mt-1">
-                          ۱۸۰,۰۰۰ <span className="text-[9px]">تومان</span>
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        aria-label="افزودن سالاد سزار به سبد خرید"
-                        onClick={() => handleAddToMockCart(180)}
-                        className="w-8 h-8 rounded-full bg-gray-900 text-white flex items-center justify-center hover:bg-orange-500 transition-all active:scale-75 shrink-0"
-                      >
-                        <Plus size={15} strokeWidth={2.8} />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* سبد خرید استیکی داخل گوشی */}
-                  <div
-                    className={`absolute bottom-0 left-0 w-full bg-white/95 backdrop-blur-xl border-t border-gray-100 p-4 pt-3 shadow-[0_-10px_30px_rgba(0,0,0,0.06)] transform transition-transform duration-500 ease-out z-20 ${
-                      cartItemsCount > 0
-                        ? "translate-y-0"
-                        : "translate-y-[120%]"
-                    }`}
-                  >
-                    <div className="flex justify-between items-center mb-3 px-1">
-                      <span className="font-bold text-gray-600 text-[12px] flex items-center gap-1.5">
-                        <ShoppingCart size={15} className="text-orange-500" />
-                        سبد سفارش (
-                        <span className="text-orange-600 font-black">
-                          {cartItemsCount.toLocaleString("fa-IR")}
-                        </span>
-                        )
-                      </span>
-                      <span className="font-black text-gray-900 text-sm">
-                        {cartTotalAmount.toLocaleString("fa-IR")}{" "}
-                        <span className="text-[9px] text-gray-400 font-bold">
-                          هزار تومان
-                        </span>
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      className={`w-full bg-gradient-to-r ${
-                        isAddedFeedback
-                          ? "from-emerald-500 to-green-500"
-                          : "from-orange-600 to-orange-500"
-                      } text-white font-black py-3 rounded-xl shadow-md transition-all text-xs flex items-center justify-center gap-2`}
+                    <span
+                      className="text-[10px] font-mono text-gray-300 truncate"
+                      dir="ltr"
                     >
-                      {isAddedFeedback ? (
-                        <>
-                          <Check size={15} strokeWidth={3} />
-                          <span>به سفارش اضافه شد</span>
-                        </>
-                      ) : (
-                        "ثبت سفارش و ارسال به آشپزخانه"
-                      )}
-                    </button>
+                      {demoDisplayHost}
+                    </span>
+
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsDemoLoading(true);
+                          setDemoRefreshKey((prev) => prev + 1);
+                        }}
+                        title="بارگذاری مجدد منو"
+                        aria-label="بارگذاری مجدد منو"
+                        className="w-6 h-6 rounded-full bg-white/10 hover:bg-white/20 text-gray-200 flex items-center justify-center transition-colors"
+                      >
+                        <RefreshCw
+                          size={11}
+                          className={isDemoLoading ? "animate-spin" : ""}
+                        />
+                      </button>
+                      <a
+                        href={demoBaseUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="باز کردن منوی دمو در تب جدید"
+                        aria-label="باز کردن منوی دمو در تب جدید"
+                        className="w-6 h-6 rounded-full bg-white/10 hover:bg-orange-500 text-gray-200 hover:text-white flex items-center justify-center transition-colors"
+                      >
+                        <ExternalLink size={11} />
+                      </a>
+                    </div>
+                  </div>
+
+                  {/* کانتینر نمایش iframe با مقیاس دقیق 360px */}
+                  <div
+                    ref={phoneScreenRef}
+                    dir="ltr"
+                    className="relative flex-1 w-full overflow-hidden bg-[#FAF9F7]"
+                  >
+                    {isDemoLoading && (
+                      <div
+                        dir="rtl"
+                        className="absolute inset-0 z-10 bg-white/90 backdrop-blur-xs flex flex-col items-center justify-center gap-2 pointer-events-none"
+                      >
+                        <Loader2
+                          size={26}
+                          className="animate-spin text-orange-500"
+                        />
+                        <span className="text-[11px] font-bold text-gray-500">
+                          در حال بارگذاری منوی زنده...
+                        </span>
+                      </div>
+                    )}
+
+                    <iframe
+                      key={demoIframeSrc}
+                      src={demoIframeSrc}
+                      title="دموی زنده منوی دیجیتال ترنج"
+                      onLoad={() => setIsDemoLoading(false)}
+                      allow="clipboard-write"
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        width: `${VIRTUAL_PHONE_WIDTH}px`,
+                        height: `${iframeVirtualHeight}px`,
+                        transform: `scale(${iframeScale})`,
+                        transformOrigin: "top left",
+                      }}
+                      className="border-0 block bg-white"
+                    />
                   </div>
                 </div>
               </div>
+
+              <p className="text-[11px] font-bold text-gray-400 mt-2 text-center">
+                روی بخش‌های مختلف منوی بالا کلیک و اسکرول کنید
+              </p>
             </div>
           </div>
         </section>
@@ -1018,7 +1032,7 @@ export const Landing: React.FC = () => {
         {/* ================= 2. Steps Section ================= */}
         <section
           id="steps-section"
-          className="relative py-28 bg-white overflow-hidden border-y border-orange-100/60"
+          className="relative py-28 bg-white overflow-hidden border-y border-gray-100"
         >
           <div className="max-w-7xl mx-auto px-6 relative z-10">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-14">
@@ -1149,7 +1163,7 @@ export const Landing: React.FC = () => {
                     to="/register"
                     className="w-full bg-orange-500 hover:bg-orange-600 text-white py-3.5 px-6 rounded-2xl font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-orange-500/25 transition-all active:scale-95"
                   >
-                    <span>همین حالا رایگان شروع کنید</span>
+                    <span>شروع ۷ روز تست رایگان پلاس</span>
                     <ArrowLeft size={16} />
                   </Link>
                 </div>
@@ -1366,7 +1380,7 @@ export const Landing: React.FC = () => {
         {/* ================= 4. Features Section ================= */}
         <section
           id="features-section"
-          className="relative py-28 bg-[#fffaf5] overflow-hidden"
+          className="relative py-28 bg-[#FAF9F7] overflow-hidden"
         >
           <div className="max-w-7xl mx-auto px-6 relative z-10">
             <div className="text-center max-w-2xl mx-auto mb-16">
@@ -1559,24 +1573,24 @@ export const Landing: React.FC = () => {
           </div>
         </section>
 
-        {/* ================= 5. Pricing Section (متصل به بک‌اند جنگو) ================= */}
+        {/* ================= 5. Pricing Section (متصل به بک‌اند جنگو + بنر ۷ روز رایگان) ================= */}
         <section
           id="pricing-section"
-          className="relative py-28 overflow-hidden bg-[#fffaf5]"
+          className="relative py-28 overflow-hidden bg-[#FAF9F7]"
         >
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-orange-100/40 rounded-full blur-[120px] pointer-events-none z-0" />
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-orange-100/35 rounded-full blur-[120px] pointer-events-none z-0" />
 
           <div className="max-w-6xl mx-auto px-6 relative z-10">
-            <div className="text-center mb-16">
+            <div className="text-center mb-12">
               <h2 className="font-black text-4xl md:text-5xl text-gray-900 tracking-tight mb-4">
                 تعرفه اشتراک{" "}
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-orange-400">
                   منوی دیجیتال بدون کارمزد.
                 </span>
               </h2>
-              <p className="text-gray-500 text-lg mb-10 font-medium">
-                پلن مناسب مجموعه خود را انتخاب کنید. بدون هیچ‌گونه کمیسیون از
-                سفارش‌ها.
+              <p className="text-gray-500 text-base sm:text-lg mb-8 font-medium">
+                ابتدا ۷ روز رایگان همه امکانات پلاس را تست کنید، سپس پلن مناسب
+                مجموعه خود را انتخاب کنید.
               </p>
 
               {/* سوئیچر کپسولی بازه زمانی ۳، ۶ و ۹ ماهه */}
@@ -1608,6 +1622,31 @@ export const Landing: React.FC = () => {
               </div>
             </div>
 
+            {/* بنر هدیه ۷ روز اشتراک رایگان پلاس */}
+            <div className="max-w-5xl mx-auto mb-12 bg-white border border-orange-200/80 rounded-[26px] p-4 sm:px-6 sm:py-5 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-[0_8px_30px_rgba(234,88,12,0.05)]">
+              <div className="flex items-center gap-3.5 text-center sm:text-right flex-col sm:flex-row">
+                <div className="w-11 h-11 rounded-2xl bg-orange-50 text-orange-600 border border-orange-100 flex items-center justify-center shrink-0">
+                  <Crown size={21} />
+                </div>
+                <div>
+                  <span className="block font-black text-sm sm:text-base text-gray-900">
+                    ۷ روز اشتراک رایگان پلن پلاس برای تمامی مجموعه‌های جدید
+                  </span>
+                  <span className="block text-xs font-bold text-gray-500 mt-0.5">
+                    بلافاصله پس از ثبت‌نام، بدون نیاز به پرداخت اولیه و کارت
+                    بانکی تمام امکانات کامل را امتحان کنید.
+                  </span>
+                </div>
+              </div>
+              <Link
+                to="/register"
+                className="bg-gray-950 hover:bg-orange-500 text-white text-xs font-black px-5 py-3 rounded-xl flex items-center gap-1.5 shrink-0 transition-colors"
+              >
+                <span>فعال‌سازی رایگان</span>
+                <ArrowLeft size={14} />
+              </Link>
+            </div>
+
             {isLoadingPlans && plans.length === 0 ? (
               <div className="flex justify-center py-12">
                 <Loader2 className="animate-spin text-orange-500" size={36} />
@@ -1630,7 +1669,7 @@ export const Landing: React.FC = () => {
                       className={`relative backdrop-blur-2xl rounded-[2.8rem] transition-all duration-500 flex flex-col h-full ${
                         plan.isPopular
                           ? "bg-white/95 border-2 border-orange-200 p-9 md:p-10 shadow-[0_20px_50px_rgba(234,88,12,0.09)] md:-translate-y-4 hover:-translate-y-6 z-10"
-                          : "bg-white/80 border border-white p-8 shadow-[0_8px_30px_rgba(0,0,0,0.03)] hover:shadow-[0_20px_40px_rgba(0,0,0,0.06)] hover:-translate-y-1"
+                          : "bg-white/85 border border-white p-8 shadow-[0_8px_30px_rgba(0,0,0,0.03)] hover:shadow-[0_20px_40px_rgba(0,0,0,0.06)] hover:-translate-y-1"
                       }`}
                     >
                       {plan.badgeText && (
@@ -1694,9 +1733,7 @@ export const Landing: React.FC = () => {
                             : "bg-gray-50 text-gray-900 border border-gray-200 hover:bg-gray-100"
                         }`}
                       >
-                        {plan.isPopular
-                          ? `شروع با پلن ${plan.name}`
-                          : `انتخاب پلن ${plan.name}`}
+                        شروع با ۷ روز تست رایگان
                       </Link>
                     </article>
                   );
@@ -1782,7 +1819,7 @@ export const Landing: React.FC = () => {
             </div>
           </div>
 
-          {/* کارت‌های نظرات مشتریان */}
+          {/* کارت‌های نظرات مشتریان با آیکون‌های سه‌بعدی */}
           <div className="max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-8 relative z-20">
             <article className="group relative rounded-[2rem] p-[2px] overflow-hidden transform hover:-translate-y-2 transition-transform duration-500">
               <div className="absolute inset-0 bg-gradient-to-br from-gray-200 to-gray-100 group-hover:from-orange-400 group-hover:to-orange-600 transition-colors duration-500" />
@@ -1794,18 +1831,12 @@ export const Landing: React.FC = () => {
                   «از وقتی ترنج رو راه‌اندازی کردیم، سرعت سفارش‌گیری ما ۳ برابر
                   شده و اشتباهات گارسون‌ها به صفر رسیده. پنل KDS فوق‌العادست.»
                 </p>
-                <div className="flex items-center gap-3 border-t border-gray-50 pt-4">
-                  <div className="w-10 h-10 bg-gray-200 rounded-full overflow-hidden shrink-0">
-                    <img
-                      src="https://images.unsplash.com/photo-1599566150163-29194dcaad36?w=100&h=100&fit=crop"
-                      width={40}
-                      height={40}
-                      loading="lazy"
-                      decoding="async"
-                      className="w-full h-full object-cover grayscale opacity-80"
-                      alt="تصویر علی محمدی مدیریت کافه لمیز"
-                    />
-                  </div>
+                <div className="flex items-center gap-3.5 border-t border-gray-50 pt-4">
+                  <Avatar3DBadge
+                    icon={User}
+                    gradient="from-amber-400 via-orange-500 to-rose-500"
+                    shadow="shadow-orange-500/30"
+                  />
                   <div>
                     <h3 className="font-black text-gray-900 text-sm">
                       علی محمدی
@@ -1829,18 +1860,12 @@ export const Landing: React.FC = () => {
                   گوشی خودشون ببینن. فروش ما تو ماه اول ۲۰ درصد افزایش پیدا
                   کرد.»
                 </p>
-                <div className="flex items-center gap-3 border-t border-gray-50 pt-4">
-                  <div className="w-10 h-10 bg-gray-200 rounded-full overflow-hidden shrink-0">
-                    <img
-                      src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop"
-                      width={40}
-                      height={40}
-                      loading="lazy"
-                      decoding="async"
-                      className="w-full h-full object-cover grayscale opacity-80"
-                      alt="تصویر سینا راد مالک برگرلند"
-                    />
-                  </div>
+                <div className="flex items-center gap-3.5 border-t border-gray-50 pt-4">
+                  <Avatar3DBadge
+                    icon={UserCheck}
+                    gradient="from-sky-400 via-blue-500 to-indigo-600"
+                    shadow="shadow-blue-500/30"
+                  />
                   <div>
                     <h3 className="font-black text-gray-900 text-sm">
                       سینا راد
@@ -1863,18 +1888,12 @@ export const Landing: React.FC = () => {
                   «قابلیت حسابداری و اتصال مستقیم به درگاه پرداخت برای مجموعه
                   بزرگ ما یک معجزه بود. همه چیز یکپارچه و دقیق کار می‌کنه.»
                 </p>
-                <div className="flex items-center gap-3 border-t border-gray-50 pt-4">
-                  <div className="w-10 h-10 bg-gray-200 rounded-full overflow-hidden shrink-0">
-                    <img
-                      src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop"
-                      width={40}
-                      height={40}
-                      loading="lazy"
-                      decoding="async"
-                      className="w-full h-full object-cover grayscale opacity-80"
-                      alt="تصویر سارا حسینی مدیر فودکورت آرتمیس"
-                    />
-                  </div>
+                <div className="flex items-center gap-3.5 border-t border-gray-50 pt-4">
+                  <Avatar3DBadge
+                    icon={Crown}
+                    gradient="from-emerald-400 via-teal-500 to-cyan-600"
+                    shadow="shadow-emerald-500/30"
+                  />
                   <div>
                     <h3 className="font-black text-gray-900 text-sm">
                       سارا حسینی
@@ -1892,9 +1911,9 @@ export const Landing: React.FC = () => {
         {/* ================= 7. FAQ Section ================= */}
         <section
           id="faq-section"
-          className="relative py-32 overflow-hidden bg-[#fffaf5]"
+          className="relative py-32 overflow-hidden bg-[#FAF9F7]"
         >
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-orange-200/20 rounded-full blur-[120px] pointer-events-none z-0" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-orange-200/15 rounded-full blur-[120px] pointer-events-none z-0" />
 
           <div className="max-w-4xl mx-auto px-6 relative z-10">
             <div className="text-center mb-16">
@@ -1912,7 +1931,7 @@ export const Landing: React.FC = () => {
               </p>
             </div>
 
-            <div className="bg-white/75 backdrop-blur-2xl border border-white rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.03)] p-6 md:p-10">
+            <div className="bg-white/85 backdrop-blur-2xl border border-white rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.03)] p-6 md:p-10">
               <div className="flex flex-col">
                 {FAQ_ITEMS.map((item, idx) => {
                   const isOpen = openFaqIndex === idx;
@@ -2061,48 +2080,61 @@ export const Landing: React.FC = () => {
                     پشتیبانی آنلاین
                   </h3>
                   <p className="text-gray-500 text-sm mb-10 leading-relaxed font-medium">
-                    کارشناسان ما در پیام‌رسان‌های زیر، آماده‌ی پاسخگویی سریع به
+                    کارشناسان ما در پیام‌رسان زیر، آماده‌ی پاسخگویی سریع به
                     سوالات و مشکلات شما هستند.
                   </p>
 
                   <div className="flex flex-col gap-4">
+                    {/* پشتیبانی تلگرام با آیدی @toranjmen */}
                     <a
-                      href="https://t.me/"
+                      href="https://t.me/toranjmen"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center justify-between p-4 rounded-2xl bg-[#0088cc]/5 border border-[#0088cc]/20 hover:bg-[#0088cc] hover:shadow-[0_10px_20px_rgba(0,136,204,0.3)] transition-all duration-300 group"
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm text-[#0088cc]">
+                      <div className="flex items-center gap-3 text-right">
+                        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm text-[#0088cc] shrink-0">
                           <Send size={20} />
                         </div>
-                        <span className="font-bold text-gray-800 group-hover:text-white transition-colors">
-                          پشتیبانی تلگرام
-                        </span>
+                        <div>
+                          <span className="block font-bold text-gray-800 group-hover:text-white transition-colors">
+                            پشتیبانی تلگرام
+                          </span>
+                          <span
+                            className="block text-xs font-mono font-bold text-[#0088cc] group-hover:text-white/90 transition-colors"
+                            dir="ltr"
+                          >
+                            @toranjmen
+                          </span>
+                        </div>
                       </div>
                       <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center opacity-0 group-hover:opacity-100 -translate-x-4 group-hover:translate-x-0 transition-all duration-300 text-white">
                         <ArrowLeft size={16} />
                       </div>
                     </a>
 
-                    <a
-                      href="https://ble.ir/"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-between p-4 rounded-2xl bg-[#1fc16d]/5 border border-[#1fc16d]/20 hover:bg-[#1fc16d] hover:shadow-[0_10px_20px_rgba(31,193,109,0.3)] transition-all duration-300 group"
+                    {/* پشتیبانی بله — به‌زودی */}
+                    <div
+                      aria-disabled="true"
+                      className="flex items-center justify-between p-4 rounded-2xl bg-gray-50 border border-gray-200/80 opacity-75 cursor-not-allowed select-none"
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm text-[#1fc16d]">
+                      <div className="flex items-center gap-3 text-right">
+                        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-2xs text-gray-400 shrink-0">
                           <MessageCircle size={20} />
                         </div>
-                        <span className="font-bold text-gray-800 group-hover:text-white transition-colors">
-                          پشتیبانی پیام‌رسان بله
-                        </span>
+                        <div>
+                          <span className="block font-bold text-gray-500">
+                            پشتیبانی پیام‌رسان بله
+                          </span>
+                          <span className="block text-[11px] font-medium text-gray-400">
+                            در حال راه‌اندازی
+                          </span>
+                        </div>
                       </div>
-                      <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center opacity-0 group-hover:opacity-100 -translate-x-4 group-hover:translate-x-0 transition-all duration-300 text-white">
-                        <ArrowLeft size={16} />
-                      </div>
-                    </a>
+                      <span className="px-3 py-1 rounded-full bg-amber-100/80 text-amber-700 border border-amber-200/70 text-[11px] font-black shrink-0">
+                        به‌زودی
+                      </span>
+                    </div>
                   </div>
                 </div>
 
@@ -2118,7 +2150,7 @@ export const Landing: React.FC = () => {
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[340px] bg-orange-500/15 rounded-full blur-[140px] pointer-events-none z-0" />
 
         <div className="max-w-7xl mx-auto px-6 relative z-10">
-          {/* کارت فراخوان پیش‌فوتر */}
+          {/* کارت فراخوان پیش‌فوتر با تاکید بر ۷ روز اشتراک رایگان پلاس */}
           <div className="bg-gradient-to-l from-orange-600 via-orange-500 to-amber-500 rounded-[2.5rem] p-8 md:p-12 mb-16 shadow-[0_25px_60px_rgba(234,88,12,0.28)] flex flex-col lg:flex-row items-center justify-between gap-8 relative overflow-hidden">
             <div
               className="absolute inset-0 opacity-15 pointer-events-none"
@@ -2131,19 +2163,19 @@ export const Landing: React.FC = () => {
 
             <div className="relative z-10 text-center lg:text-right max-w-xl">
               <div className="inline-flex items-center gap-2 bg-black/20 backdrop-blur-md px-3.5 py-1.5 rounded-full text-xs font-black text-white mb-4">
-                <Sparkles size={14} />
-                <span>ساخت منوی دیجیتال در کمتر از ۵ دقیقه</span>
+                <Gift size={14} />
+                <span>۷ روز اشتراک رایگان پلن پلاس برای مجموعه‌های جدید</span>
               </div>
               <h2 className="font-black text-3xl sm:text-4xl text-white leading-tight mb-3">
-                کافه یا رستوران خود را به{" "}
+                کافه یا رستوران خود را با{" "}
                 <span className="underline decoration-white/50 underline-offset-8">
                   ترنج
                 </span>{" "}
-                مجهز کنید.
+                هوشمند کنید.
               </h2>
               <p className="text-white/90 text-sm sm:text-base font-medium">
                 بدون هزینه راه‌اندازی اولیه و بدون کمیسیون از فروش؛ همین امروز
-                بارکد اختصاصی میزهایتان را بسازید.
+                با ۷ روز تست رایگان پلاس شروع کنید.
               </p>
             </div>
 
@@ -2164,7 +2196,7 @@ export const Landing: React.FC = () => {
                 to="/register"
                 className="bg-gray-950 hover:bg-gray-900 text-white font-black text-sm px-7 py-4 rounded-2xl flex items-center justify-center gap-2 shadow-xl transition-all active:scale-95 w-full sm:w-auto"
               >
-                <span>ساخت پنل رایگان</span>
+                <span>شروع ۷ روز رایگان</span>
                 <ArrowLeft size={17} />
               </Link>
             </div>
@@ -2310,33 +2342,38 @@ export const Landing: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2.5">
+              {/* شبکه‌های اجتماعی فوتر: اینستاگرام toranjmenu.ir و کانال تلگرام toranjmenuchannel */}
+              <div className="flex flex-col gap-2.5">
                 <a
-                  href="https://instagram.com"
+                  href="https://instagram.com/toranjmenu.ir"
                   target="_blank"
                   rel="noopener noreferrer"
-                  aria-label="اینستاگرام ترنج"
-                  className="w-10 h-10 rounded-xl bg-white/[0.06] border border-white/10 flex items-center justify-center text-gray-300 hover:bg-orange-500 hover:text-white transition-all"
+                  aria-label="اینستاگرام ترنج (toranjmenu.ir)"
+                  className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-white/[0.06] border border-white/10 text-gray-300 hover:bg-orange-500 hover:text-white hover:border-orange-500 transition-all"
                 >
-                  <CameraIcon />
+                  <span className="flex items-center gap-2 text-xs font-bold">
+                    <CameraIcon />
+                    <span>اینستاگرام</span>
+                  </span>
+                  <span className="text-[11px] font-mono font-bold" dir="ltr">
+                    @toranjmenu.ir
+                  </span>
                 </a>
+
                 <a
-                  href="https://t.me"
+                  href="https://t.me/toranjmenuchannel"
                   target="_blank"
                   rel="noopener noreferrer"
-                  aria-label="تلگرام ترنج"
-                  className="w-10 h-10 rounded-xl bg-white/[0.06] border border-white/10 flex items-center justify-center text-gray-300 hover:bg-[#0088cc] hover:text-white transition-all"
+                  aria-label="کانال تلگرام ترنج (toranjmenuchannel)"
+                  className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-white/[0.06] border border-white/10 text-gray-300 hover:bg-[#0088cc] hover:text-white hover:border-[#0088cc] transition-all"
                 >
-                  <Send size={17} />
-                </a>
-                <a
-                  href="https://ble.ir"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="بله ترنج"
-                  className="w-10 h-10 rounded-xl bg-white/[0.06] border border-white/10 flex items-center justify-center text-gray-300 hover:bg-[#1fc16d] hover:text-white transition-all"
-                >
-                  <MessageCircle size={17} />
+                  <span className="flex items-center gap-2 text-xs font-bold">
+                    <Send size={15} />
+                    <span>کانال تلگرام</span>
+                  </span>
+                  <span className="text-[11px] font-mono font-bold" dir="ltr">
+                    @toranjmenuchannel
+                  </span>
                 </a>
               </div>
             </div>
@@ -2404,14 +2441,6 @@ export const Landing: React.FC = () => {
           transform: scale(1);
         }
 
-        @keyframes float {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-14px); }
-        }
-        .animate-float {
-          animation: float 5s ease-in-out infinite;
-        }
-
         @keyframes kdsPop {
           0% { transform: scale(0.88); opacity: 0; }
           60% { transform: scale(1.02); }
@@ -2445,8 +2474,8 @@ export const Landing: React.FC = () => {
 
 const CameraIcon = () => (
   <svg
-    width="17"
-    height="17"
+    width="15"
+    height="15"
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"

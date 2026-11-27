@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
-import { Loader2, Store } from "lucide-react";
+import { Loader2, Store, Clock, Sparkles } from "lucide-react";
 import { customerApi } from "../service/api";
 import Template1 from "../components/templates/Template1";
 import Template2 from "../components/templates/Template2";
@@ -40,10 +40,24 @@ const TemplateRegistry: Record<string, React.FC<any>> = {
   template_15: Template15,
 };
 
+const normalizeThemeCode = (value: unknown): string => {
+  const cleaned = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+  if (!cleaned) return "template_1";
+  if (/^\d+$/.test(cleaned)) return `template_${cleaned}`;
+  if (/^template\d+$/.test(cleaned)) {
+    return cleaned.replace(/^template(\d+)$/, "template_$1");
+  }
+  return cleaned;
+};
+
 export const CustomerMenu = () => {
   const { slug } = useParams();
   const [searchParams] = useSearchParams();
   const tableParam = searchParams.get("table");
+  const previewThemeParam = searchParams.get("previewTheme");
   const tableNumber = tableParam ? parseInt(tableParam, 10) : null;
 
   const [isLoading, setIsLoading] = useState(true);
@@ -141,6 +155,12 @@ export const CustomerMenu = () => {
       isMounted = false;
     };
   }, [slug]);
+
+  useEffect(() => {
+    if (venueData && !venueData.bilingual && language !== "fa") {
+      setLanguage("fa");
+    }
+  }, [venueData, language]);
 
   const addToCart = (product: any) => {
     setCart((prev) => {
@@ -326,7 +346,41 @@ export const CustomerMenu = () => {
     );
   }
 
-  const activeTheme = venueData?.theme || venueData?.Theme || "template_1";
+  // توقف نمایش منوی عمومی در صورت انقضا یا خلع اشتراک (به جز حالت پیش‌نمایش پنل مدیریت)
+  if (venueData?.subscriptionActive === false && !previewThemeParam) {
+    return (
+      <div
+        className="min-h-screen bg-[#F5F5F7] flex flex-col justify-center items-center p-6 text-center"
+        dir="rtl"
+      >
+        <div className="bg-white max-w-sm w-full rounded-[34px] p-8 border border-slate-200/70 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
+          <div className="w-20 h-20 rounded-[26px] bg-orange-50 text-orange-500 border border-orange-100 flex items-center justify-center mx-auto mb-5">
+            <Clock size={34} />
+          </div>
+          <h2 className="text-xl font-black text-slate-900 mb-2">
+            {venueData.name}
+          </h2>
+          <p className="text-xs sm:text-sm font-bold text-slate-500 leading-relaxed mb-6">
+            منوی دیجیتال این مجموعه موقتاً در دسترس نیست. لطفاً برای ثبت سفارش
+            با پرسنل سالن در ارتباط باشید.
+          </p>
+          <a
+            href="https://toranjmenu.ir"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-[11px] font-black text-slate-400 hover:text-orange-500 transition-colors"
+          >
+            <Sparkles size={12} className="text-orange-500" />
+            <span>قدرت‌گرفته از منوی دیجیتال ترنج</span>
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  const activeTheme = normalizeThemeCode(
+    previewThemeParam || venueData?.theme || venueData?.Theme || "template_1",
+  );
   const SelectedTemplate =
     TemplateRegistry[activeTheme] || TemplateRegistry["template_1"];
 

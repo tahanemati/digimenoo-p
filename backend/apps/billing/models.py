@@ -199,6 +199,9 @@ class UserSubscription(models.Model):
         default=90, verbose_name="کل روزهای دوره"
     )
     is_trial = models.BooleanField(default=False, verbose_name="نسخه آزمایشی")
+    is_revoked = models.BooleanField(
+        default=False, verbose_name="لغو / خلع شده توسط ادمین"
+    )
     started_at = models.DateTimeField(
         default=timezone.now, verbose_name="تاریخ شروع"
     )
@@ -209,8 +212,18 @@ class UserSubscription(models.Model):
         verbose_name = "اشتراک کاربر"
         verbose_name_plural = "اشتراک‌های کاربران"
 
+    @property
+    def is_active_now(self):
+        return (not self.is_revoked) and self.expire_date > timezone.now()
+
+    def save(self, *args, **kwargs):
+        if self.plan and not self.plan_name:
+            self.plan_name = f"پلن {self.plan.name}"
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        return f"{self.user.mobile} - {self.plan_name}"
+        status_txt = "فعال" if self.is_active_now else "غیرفعال/منقضی"
+        return f"{self.user.mobile} - {self.plan_name} ({status_txt})"
 
 
 class PaymentCardSetting(models.Model):
